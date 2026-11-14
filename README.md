@@ -10,7 +10,7 @@ This is a **draft extraction**, not a production-ready CI replacement. The initi
 
 A consumer calls `.github/workflows/bootstrap.yml` via `workflow_call`, passing an optional `operation` input. The engine reads `.github/config/ci/operations.toml` from the consumer and discovers tracked `ci/components/**/component.toml` manifests. Operation selection is driven by GitHub event and config. Read-only commands are argument arrays, not shell strings.
 
-The engine's reusable workflow intentionally does not have `workflow_dispatch`, so it is not independently advertised for manual runs. Each consumer owns its user-facing `ci.yml`.
+The engine's reusable workflow intentionally does not have `workflow_dispatch`, so it is not independently advertised for manual runs. Each consumer owns its user-facing `ci.yml`. It invokes the engine's root composite action through GitHub's same-repository `$/` syntax, binding the action to the exact engine revision of the called workflow without another checkout. `$/` currently requires GitHub.com Actions, not GitHub Enterprise Server.
 
 ## Security contract
 
