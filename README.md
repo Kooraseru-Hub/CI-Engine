@@ -1,5 +1,21 @@
 # CI Engine
 
-Language-agnostic GitHub Actions orchestration. This repository provides a versioned reusable bootstrap; projects define their own operations, components, and dependency requirements.
+A language-agnostic CI bootstrap and execution contract. Project repositories declare operations and components; the engine never contains project- or language-specific targets.
 
-Development starts on the `development/engine-extraction` branch. The default branch is intentionally not advertised as a stable release until the consumer integration passes.
+## Development status
+
+This is a **draft extraction**, not a production-ready CI replacement. The initial backend handles unprivileged commands sequentially in an isolated GitHub runner and deliberately refuses privileged operations and module-backed components. Native multi-job DAGs, isolated publication, credential selection, cross-platform portability, reporting, and provenance validation are not complete. Do not tag `v1` or migrate consumers until these pass.
+
+## Interface
+
+A consumer calls `.github/workflows/bootstrap.yml` via `workflow_call`, passing an optional `operation` input. The engine reads `.github/config/ci/operations.toml` from the consumer and discovers tracked `ci/components/**/component.toml` manifests. Operation selection is driven by GitHub event and config. Read-only commands are argument arrays, not shell strings.
+
+The engine's reusable workflow intentionally does not have `workflow_dispatch`, so it is not independently advertised for manual runs. Each consumer owns its user-facing `ci.yml`.
+
+## Security contract
+
+The engine uses `contents: read`, does not persist checkout credentials, rejects privileged components, and does not bind secrets. This version must not receive or execute privileged operations. A separate trusted GitHub executor is required before publication is supported.
+
+## Implementation principle
+
+Like Workbench Bridge, extension contracts are stable while external components supply functionality. Languages and build tools are never enumerated by the engine. GitHub platform capabilities are adapted at the boundary, not hardcoded into component logic.

@@ -1,0 +1,42 @@
+name: Bootstrap
+
+on:
+  workflow_call:
+    inputs:
+      operation:
+        description: Optional operation identifier; empty selects the event route
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout engine
+        uses: actions/checkout@v4
+        with:
+          repository: Kooraseru-Hub/CI-Engine
+          ref: development/engine-extraction
+          path: .ci-engine
+          persist-credentials: false
+      - name: Provision engine runtime
+        uses: jdx/mise-action@v3
+        with:
+          working_directory: .ci-engine
+          install: true
+      - name: Run bootstrap
+        uses: ./.ci-engine
+        with:
+          operation: ${{ inputs.operation }}
