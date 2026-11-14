@@ -2,7 +2,7 @@
 -- Portable bootstrap. No repo-specific code, application secrets, or Node controller.
 local Fs = require("@std/fs")
 local Process = require("@lute/process")
-local Toml = require("@formats/toml")
+local Json = require("@std/json")
 
 type Record = { [string]: any }
 
@@ -66,9 +66,9 @@ end
 local function load(path: string): Record
     if not Fs.exists(path) then fail("missing configuration: " .. path) end
     local ok, result = pcall(function()
-        return Toml.decode(Fs.readFileToString(path))
+        return Json.deserialize(Fs.readFileToString(path))
     end)
-    if not ok then fail("invalid TOML in " .. path .. ": " .. tostring(result)) end
+    if not ok then fail("invalid JSON in " .. path .. ": " .. tostring(result)) end
     return record(result, path)
 end
 
@@ -83,7 +83,7 @@ local function discover(root: string): { [string]: Record }
         local mode, path = line:match("^(%d+)%s+[%da-fA-F]+%s+%d+\t(.+)$")
         if not mode or not path then fail("invalid git index entry") end
         if mode == "120000" or mode == "160000" then fail("linked component entry: " .. path) end
-        if path:sub(-15) == "/component.toml" then
+        if path:sub(-15) == "/component.json" then
             local identity = path:sub(#root + 2, -16)
             if identity == "" or not identity:match("^[%w_/-]+$") or identity:find("%.%.") then
                 fail("unsafe component identity: " .. identity)
@@ -107,7 +107,7 @@ local function discover(root: string): { [string]: Record }
 end
 
 local function main(): ()
-    local configPath = Process.env.CI_ENGINE_CONFIG or ".github/config/ci/operations.toml"
+    local configPath = Process.env.CI_ENGINE_CONFIG or ".github/config/ci/engine.json"
     local config = load(configPath)
     local event = Process.env.GITHUB_EVENT_NAME or "workflow_dispatch"
     local routes = record(config.triggers, "triggers")
