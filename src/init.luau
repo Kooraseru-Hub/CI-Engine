@@ -2,7 +2,7 @@
 -- Generic CI entry point. Project configuration owns operations, not this file.
 local Fs = require("@std/fs")
 local Process = require("@lute/process")
-local Json = require("@std/json")
+local Json = require("@engine/configuration/json")
 local Component = require("@engine/contracts/component")
 local Discovery = require("@engine/discovery/components")
 local Graph = require("@engine/planning/graph")
