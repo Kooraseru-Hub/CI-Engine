@@ -8,6 +8,12 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Provision engine runtime
+      uses: jdx/mise-action@v5
+      with:
+        version: "2026.11.8"
+        working_directory: ${{ github.action_path }}
+        install: true
     - name: Execute engine
       shell: bash
       working-directory: ${{ github.workspace }}
@@ -15,4 +21,4 @@ runs:
         CI_REQUESTED_OPERATION: ${{ inputs.operation }}
       run: |
         set -euo pipefail
-        mise exec -C "$GITHUB_ACTION_PATH" -- lute run "$GITHUB_ACTION_PATH/src/init.luau"
+        mise -C "$GITHUB_ACTION_PATH" exec -- lute run "$GITHUB_ACTION_PATH/src/init.luau"
