@@ -119,6 +119,14 @@ local function main(): ()
     local operation = record(operations[name], "operations." .. name)
     local events = strings(operation.events or {}, "operation.events")
     if not table.find(events, event) then fail("operation " .. name .. " is not authorized for " .. event) end
+    if event == "push" and operation.branch == "default" then
+        local defaultBranch = Process.env.CI_DEFAULT_BRANCH
+        if not defaultBranch or defaultBranch == "" then fail("missing default branch event context") end
+        if Process.env.GITHUB_REF ~= "refs/heads/" .. defaultBranch then
+            print("CI Engine: non-default branch push excluded by operation policy")
+            return
+        end
+    end
     if operation.mode ~= "readonly" then fail("operation " .. name .. " requires an isolated privileged backend; refusing execution") end
     local patterns = strings(operation.components or {}, "operation.components")
     if #patterns == 0 then fail("operation " .. name .. " selects no components") end
