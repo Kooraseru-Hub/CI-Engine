@@ -1,0 +1,19 @@
+{
+  "provides": [
+    "smoke.contracts"
+  ],
+  "requires": [
+    "smoke.git"
+  ],
+  "boundary": "read",
+  "events": [
+    "push",
+    "pull_request",
+    "workflow_dispatch"
+  ],
+  "command": [
+    "lute",
+    "run",
+    "tests/engine-contracts.test.luau"
+  ]
+}

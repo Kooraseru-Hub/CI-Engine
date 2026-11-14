@@ -5,8 +5,7 @@
   "required": [
     "provides",
     "requires",
-    "boundary",
-    "command"
+    "boundary"
   ],
   "properties": {
     "provides": {
@@ -15,7 +14,8 @@
         "type": "string",
         "minLength": 1
       },
-      "uniqueItems": true
+      "uniqueItems": true,
+      "minItems": 1
     },
     "requires": {
       "type": "array",
@@ -45,18 +45,21 @@
       "items": {
         "type": "string",
         "minLength": 1
-      }
+      },
+      "description": "Optional command-array adapter; unsupported adapters fail closed until implemented."
     },
     "inputs": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       }
     },
     "outputs": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       }
     },
     "phase": {
@@ -72,6 +75,9 @@
     "extensions": {
       "type": "object",
       "additionalProperties": true
+    },
+    "enabled": {
+      "type": "boolean"
     }
   },
   "additionalProperties": false

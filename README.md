@@ -19,3 +19,13 @@ The engine uses `contents: read`, does not persist checkout credentials, rejects
 ## Implementation principle
 
 Like Workbench Bridge, extension contracts are stable while external components supply functionality. Languages and build tools are never enumerated by the engine. GitHub platform capabilities are adapted at the boundary, not hardcoded into component logic.
+
+## Extracted from Template PR #43
+
+The current extraction restores validated component metadata, deterministic capability DAG planning, tracked-entry and symlink safety checks, glob matching/output collision detection, and outcome/output verification. Unlike the original controller, the reusable contract does **not** enumerate languages, project branches, permitted event names, or `build`/`publish` phases.
+
+A component's `requires` entries name capabilities. The engine includes their eligible providers automatically, retains graph edges, rejects ambiguous providers and cycles, and fails closed if read-only work requests credentials. Contracts are stored as `component.json` under a configurable repository-owned directory. A command component is independent of the engine's implementation language.
+
+The original Template's credential selector, publication logic, GitHub resource management, and generated eight-job controller are **not imported**. They are project-specific or need a separate trust review. The privileged backend remains unimplemented; this extraction does not grant publication rights.
+
+The engine's own PR verification executes contract/planner regression tests without any dependency on Template.
