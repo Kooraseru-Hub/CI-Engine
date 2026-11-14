@@ -45,7 +45,7 @@ local function load(path: string): Record
         fail("missing or unsafe configuration: " .. path)
     end
     local ok, value = pcall(function()
-        return Json.deserialize(Fs.readFileToString(path))
+        return Json.decode(Fs.readFileToString(path))
     end)
     if not ok then fail("invalid JSON in " .. path .. ": " .. tostring(value)) end
     return record(value, path)

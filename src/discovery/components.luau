@@ -39,7 +39,7 @@ function Discovery.Load(root: string): { [string]: any }
                 error("CI Engine: missing tracked component: " .. path, 0)
             end
             local ok, value = pcall(function()
-                return Json.deserialize(Fs.readFileToString(path))
+                return Json.decode(Fs.readFileToString(path))
             end)
             if not ok then
                 error("CI Engine: invalid JSON in " .. path .. ": " .. tostring(value), 0)
