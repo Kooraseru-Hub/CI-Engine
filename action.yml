@@ -21,4 +21,4 @@ runs:
         CI_REQUESTED_OPERATION: ${{ inputs.operation }}
       run: |
         set -euo pipefail
-        mise -C "$GITHUB_ACTION_PATH" exec -- lute run "$GITHUB_ACTION_PATH/src/init.luau"
+        mise -C "$GITHUB_ACTION_PATH" exec -- bash -c 'cd "$GITHUB_WORKSPACE" && exec lute run "$GITHUB_ACTION_PATH/src/init.luau"'
