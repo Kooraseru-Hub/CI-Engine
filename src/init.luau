@@ -3,10 +3,10 @@
 local Fs = require("@std/fs")
 local Process = require("@lute/process")
 local Json = require("@std/json")
-local Component = require("./contracts/component")
-local Discovery = require("./discovery/components")
-local Graph = require("./planning/graph")
-local ReadOnly = require("./execution/readonly")
+local Component = require("@engine/contracts/component")
+local Discovery = require("@engine/discovery/components")
+local Graph = require("@engine/planning/graph")
+local ReadOnly = require("@engine/execution/readonly")
 
 type Record = { [string]: any }
 

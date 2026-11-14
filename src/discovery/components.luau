@@ -5,7 +5,7 @@
 local Fs = require("@std/fs")
 local Process = require("@lute/process")
 local Json = require("@std/json")
-local Component = require("../contracts/component")
+local Component = require("@engine/contracts/component")
 
 local Discovery = {}
 

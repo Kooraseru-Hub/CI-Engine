@@ -2,7 +2,7 @@
 -- Adapted from Template PR #43: ci/bootstrap/planning/init.luau.
 -- The planner does not own event routing, phases, credentials, or languages.
 
-local Glob = require("./glob")
+local Glob = require("@engine/planning/glob")
 
 local Graph = {}
 

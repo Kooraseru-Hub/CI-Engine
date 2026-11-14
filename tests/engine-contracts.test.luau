@@ -1,10 +1,10 @@
 --!strict
 -- Self-contained contract tests. All assertions run inside Lute without
 -- Node, npm, or the consuming Template repository.
-local Component = require("../src/contracts/component")
-local Graph = require("../src/planning/graph")
-local Glob = require("../src/planning/glob")
-local Outcome = require("../src/execution/outcome")
+local Component = require("@engine/contracts/component")
+local Graph = require("@engine/planning/graph")
+local Glob = require("@engine/planning/glob")
+local Outcome = require("@engine/execution/outcome")
 
 local passed = 0
 

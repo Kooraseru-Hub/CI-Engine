@@ -4,8 +4,8 @@
 
 local Fs = require("@std/fs")
 local Process = require("@lute/process")
-local Glob = require("../planning/glob")
-local Outcome = require("./outcome")
+local Glob = require("@engine/planning/glob")
+local Outcome = require("@engine/execution/outcome")
 
 local ReadOnly = {}
 
