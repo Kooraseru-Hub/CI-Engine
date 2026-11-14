@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CI Engine configuration",
+  "type": "object",
+  "required": [
+    "version",
+    "triggers",
+    "operations"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "componentRoot": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_./-]+$",
+      "description": "Repository-relative directory containing tracked component.json files"
+    },
+    "triggers": {
+      "type": "object",
+      "description": "GitHub event name mapped to operation name",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "operations": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "mode",
+          "events",
+          "components"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "readonly",
+              "generated"
+            ]
+          },
+          "events": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "components": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "branch": {
+            "enum": [
+              "default"
+            ]
+          },
+          "extensions": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
