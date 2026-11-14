@@ -24,19 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Checkout engine
-        uses: actions/checkout@v4
-        with:
-          repository: Kooraseru-Hub/CI-Engine
-          ref: development/engine-extraction
-          path: .ci-engine
-          persist-credentials: false
-      - name: Provision engine runtime
-        uses: jdx/mise-action@v3
-        with:
-          working_directory: .ci-engine
-          install: true
-      - name: Run bootstrap
-        uses: ./.ci-engine
+      - name: Run engine
+        uses: $/
         with:
           operation: ${{ inputs.operation }}
