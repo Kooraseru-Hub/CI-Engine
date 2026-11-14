@@ -1,0 +1,33 @@
+name: Bootstrap
+
+on:
+  workflow_call:
+    inputs:
+      operation:
+        description: Optional operation identifier; empty selects the event route
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run engine
+        uses: $/
+        with:
+          operation: ${{ inputs.operation }}

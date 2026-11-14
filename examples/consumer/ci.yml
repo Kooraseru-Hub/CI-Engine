@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    uses: Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml@development/engine-extraction
+    with:
+      operation: ${{ inputs.operation || '' }}

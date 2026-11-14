@@ -1,0 +1,17 @@
+{
+  "provides": [
+    "quality.smoke"
+  ],
+  "requires": [],
+  "events": [
+    "push",
+    "pull_request",
+    "workflow_dispatch"
+  ],
+  "boundary": "read",
+  "command": [
+    "git",
+    "status",
+    "--porcelain"
+  ]
+}

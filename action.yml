@@ -1,0 +1,24 @@
+name: CI Engine Bootstrap
+description: Resolve and execute unprivileged project-defined CI components
+inputs:
+  operation:
+    description: Optional operation name
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Provision engine runtime
+      uses: jdx/mise-action@v5
+      with:
+        version: "2026.11.8"
+        working_directory: ${{ github.action_path }}
+        install: true
+    - name: Execute engine
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        CI_REQUESTED_OPERATION: ${{ inputs.operation }}
+      run: |
+        set -euo pipefail
+        mise -C "$GITHUB_ACTION_PATH" exec -- bash -c 'cd "$GITHUB_WORKSPACE" && exec lute run "$GITHUB_ACTION_PATH/src/init.luau"'

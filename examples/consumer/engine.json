@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "triggers": {
+    "push": "build",
+    "pull_request": "review",
+    "workflow_dispatch": "review"
+  },
+  "operations": {
+    "review": {
+      "mode": "readonly",
+      "events": [
+        "pull_request",
+        "workflow_dispatch"
+      ],
+      "components": [
+        "quality/*"
+      ]
+    },
+    "build": {
+      "mode": "readonly",
+      "events": [
+        "push"
+      ],
+      "components": [
+        "*"
+      ]
+    }
+  }
+}
