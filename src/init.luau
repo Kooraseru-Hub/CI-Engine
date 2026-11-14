@@ -131,7 +131,7 @@ local function main(): ()
     local patterns = strings(operation.components or {}, "operation.components")
     if #patterns == 0 then fail("operation " .. name .. " selects no components") end
 
-    local components = discover(Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components")
+    local components = discover(config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components")
     local active: { [string]: Record } = {}
     local providers: { [string]: string } = {}
     for identity, component in components do
