@@ -89,6 +89,9 @@ local function main(): ()
         return
     end
     if phase == "authorize" then
+        writeOutput("mode", route.mode)
+        writeOutput("environment", route.environment)
+        writeOutput("operation", route.name)
         if route.mode == "generated" then
             if context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch then
                 fail("untrusted event cannot authorize generated execution")
