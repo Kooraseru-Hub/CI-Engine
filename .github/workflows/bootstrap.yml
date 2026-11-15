@@ -35,6 +35,7 @@ jobs:
       operation: ${{ steps.route.outputs.operation }}
       mode: ${{ steps.route.outputs.mode }}
       environment: ${{ steps.route.outputs.environment }}
+      native: ${{ steps.route.outputs.native }}
       publication: ${{ steps.route.outputs.publication }}
     steps:
       - name: Checkout consumer
@@ -148,6 +149,7 @@ jobs:
       operation: ${{ steps.permission.outputs.operation }}
       mode: ${{ steps.permission.outputs.mode }}
       environment: ${{ steps.permission.outputs.environment }}
+      native: ${{ steps.permission.outputs.native }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v7
@@ -173,7 +175,7 @@ jobs:
       actions: read
       id-token: write
     environment:
-      name: ${{ needs.authorize.outputs.mode == 'generated' && needs.authorize.outputs.environment || 'ci-readonly' }}
+      name: ${{ (needs.authorize.outputs.mode == 'generated' || (needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) && 'ci-bootstrap' || 'ci-readonly' }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v7
@@ -188,6 +190,20 @@ jobs:
           CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
         with:
           phase: execute
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+      - name: Launch native build-only pipeline
+        if: ${{ needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
+          CI_NATIVE_WRITE_TOKEN: ${{ secrets.bootstrap_token }}
+          CI_NATIVE_APP_ID: ${{ vars.CI_APP_ID }}
+          CI_NATIVE_APP_PRIVATE_KEY: ${{ secrets.app_private_key }}
+          CI_NATIVE_READ_TOKEN: ${{ github.token }}
+        with:
+          phase: native
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Execute trusted generated adapter
