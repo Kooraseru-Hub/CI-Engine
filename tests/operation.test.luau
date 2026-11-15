@@ -75,4 +75,18 @@ rejects("no privilege-escalating read-only command", function()
     copy.operations = operations
     Operation.Resolve(copy, context)
 end)
+do
+    local copy = table.clone(cfg)
+    local operations = table.clone(cfg.operations)
+    local work = table.clone(cfg.operations.review)
+    work.native = { command = { "node", "ci/github/workflows/launch.cjs" } }
+    operations.review = work
+    copy.operations = operations
+    check("read-only native adapter is a separately gated capability",
+        Operation.Resolve(copy, context).mode == "readonly")
+    work.native = { command = {} }
+    check("native adapter rejects empty commands", not pcall(function()
+        Operation.Resolve(copy, context)
+    end))
+end
 print("CI Engine: " .. passed .. " operation routing tests passed")
