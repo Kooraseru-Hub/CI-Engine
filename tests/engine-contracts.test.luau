@@ -102,4 +102,73 @@ check("event-filtered components remain excluded", #compatible.ordered == 1
 check("exit success mapping", Outcome.FromExitCode(0) == "passed")
 check("exit skip mapping", Outcome.FromExitCode(Outcome.skippedExitCode) == "skipped")
 check("exit failure mapping", Outcome.FromExitCode(1) == "failed")
+-- Controller topology regression: one root, convergent asynchronous branches.
+local Fs = require("@std/fs")
+local workflow = Fs.readFileToString(".github/workflows/bootstrap.yml")
+local expected: { [string]: { string } } = {
+    resolve = {},
+    prepare = { "resolve" },
+    discover = { "resolve" },
+    inspect = { "resolve" },
+    plan = { "discover" },
+    authorize = { "plan", "inspect" },
+    execute = { "prepare", "authorize" },
+    report = { "execute" },
+    cleanup = { "report" },
+    validate = { "cleanup" },
+}
+local labels: { [string]: string } = {
+    resolve = "Resolve", prepare = "Prepare", discover = "Discover",
+    inspect = "Inspect", plan = "Plan", authorize = "Authorize",
+    execute = "Execute", report = "Collect", cleanup = "Cleanup",
+    validate = "validate",
+}
+local found: { [string]: { string } } = {}
+local names: { [string]: string } = {}
+local inside = false
+local current: string? = nil
+for line in workflow:gmatch("[^\r\n]+") do
+    if line == "jobs:" then inside = true end
+    if inside then
+        local header = line:match("^  ([a-z]+):$")
+        if header then
+            if expected[header] == nil then error("unexpected controller job " .. header, 0) end
+            if found[header] ~= nil then error("duplicate controller job " .. header, 0) end
+            current = header
+            found[header] = {}
+        elseif current ~= nil then
+            local raw = line:match("^    needs: (.+)$")
+            if raw then
+                local values: { string } = {}
+                for dependency in raw:gmatch("[a-z]+") do table.insert(values, dependency) end
+                found[current] = values
+            end
+            local label = line:match("^    name: (.+)$")
+            if label then names[current] = label end
+            if line:match("^    if:") and current ~= "report" and current ~= "cleanup" and current ~= "validate" then
+                error("controller stage is conditionally skipped: " .. current, 0)
+            end
+        end
+    end
+end
+local count = 0
+for job, dependencies in expected do
+    count += 1
+    local actual = found[job]
+    check("controller includes " .. job, actual ~= nil)
+    check("short job label " .. job, names[job] == labels[job])
+    if not actual then error("missing " .. job, 0) end
+    table.sort(actual)
+    table.sort(dependencies)
+    check("controller edges for " .. job,
+        table.concat(actual, ",") == table.concat(dependencies, ","))
+end
+local present = 0
+for _ in found do present += 1 end
+check("no additional controller jobs", present == count)
+check("controller branches after Resolve", #found.prepare == 1
+    and #found.discover == 1 and #found.inspect == 1)
+check("controller converges before Execute", #found.authorize == 2
+    and #found.execute == 2)
+
 print("CI Engine: " .. passed .. " contract and planner tests passed")
