@@ -56,6 +56,49 @@ local function main(): ()
         print("CI Engine: " .. route.name .. " selected (" .. route.mode .. ")")
         return
     end
+    if phase == "prepare" then
+        local result = Process.run({ "git", "rev-parse", "--is-inside-work-tree" }, { cwd = Process.cwd() })
+        if not result.ok or not result.stdout:find("true", 1, true) then
+            fail("prepare requires a Git working tree")
+        end
+        print("CI Engine: workspace prepared for " .. route.name)
+        print("CI Engine: project tool dependencies remain component-owned")
+        return
+    end
+    if phase == "discover" or phase == "plan" then
+        if route.mode == "readonly" then
+            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
+            if type(root) ~= "string" or not Component.ValidRoot(root) then fail("unsafe component root") end
+            local components = Discovery.Load(root)
+            if phase == "discover" then
+                local count = 0
+                for _ in components do count += 1 end
+                if count == 0 then fail("no component contracts discovered") end
+                print("CI Engine: discovered " .. count .. " tracked component contracts")
+            else
+                local plan = Graph.Plan(components, route.operation.components, context.event, route.mode)
+                if #plan.ordered == 0 then fail("no components selected by " .. route.name) end
+                print("CI Engine: execution plan (" .. #plan.ordered .. " components)")
+                for position, identity in plan.ordered do
+                    print(position .. ". " .. identity)
+                end
+            end
+        else
+            print("CI Engine: " .. phase .. " delegates the native graph to the declared generated adapter")
+        end
+        return
+    end
+    if phase == "authorize" then
+        if route.mode == "generated" then
+            if context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch then
+                fail("untrusted event cannot authorize generated execution")
+            end
+            print("CI Engine: trusted execution authorized for environment " .. route.environment)
+        else
+            print("CI Engine: read-only execution authorized without publishing credentials")
+        end
+        return
+    end
     if phase == "generated" then
         Generated.Run(route, context)
         print("CI Engine: generated operation completed successfully")
