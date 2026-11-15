@@ -83,6 +83,12 @@ function Operation.Resolve(config: any, context: {
         end
         local patterns = list(operation.components, name .. ".components")
         if #patterns == 0 then fail("read-only operation selects no components") end
+        if operation.native ~= nil then
+            if type(operation.native) ~= "table" then fail("native adapter must be a record") end
+            if #list(operation.native.command, name .. ".native.command") == 0 then
+                fail("native adapter requires an executable")
+            end
+        end
     end
     return { name = name, mode = operation.mode, environment = operation.environment or "",
         publication = operation.publication == true, plan = operation.plan or "",
