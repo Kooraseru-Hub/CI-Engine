@@ -5,7 +5,7 @@ A reusable, language-independent CI coordinator. Repositories own their operatio
 ## Entry points
 
 - **.github/workflows/bootstrap.yml** – a reusable workflow_call entry point, not a second manually runnable workflow
-- **action.yml** – an independently usable composite action supporting resolve, execute and generated phases
+- **action.yml** – an independently usable composite action supporting resolve, prepare, discover, inspect, plan, authorize, execute and generated phases
 - **src/** – the generic Lute runtime, without requiring a Node controller or any particular project language
 
 The consumer's only permanent CI workflow calls Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml at an exact full commit SHA.
@@ -14,7 +14,26 @@ The consumer declares triggers and operations in .github/config/ci/engine.json. 
 
 Generated operations invoke a **repository-owned execution adapter** only after the engine's separate trusted job passes its event, default-branch and protected-environment checks. Such an adapter can compile GitHub-native workflow DAGs, dispatch them, verify completion, publish, manage generated branches, and clean up. The engine does not hardcode toolchains, publishers, phases, or repository names. A nonzero adapter exit fails the required final result.
 
-The reusable workflow exposes a single strictly linear graph: Resolve Operation → Prepare Dependencies → Discover Components → Plan Execution → Authorize Operation → Execute Pipeline → Collect Results → Cleanup → validate. Each job runs for every selected operation; read-only versus generated execution is a decision inside the Execute Pipeline job, not a pair of mutually skipped GitHub jobs. GitHub cannot insert new native jobs into the current workflow run, so generated component DAGs use a separate dispatched workflow or external backend.
+The reusable workflow has a **single entry point** and a fork-and-join DAG. Prepare, Discover, and Inspect run in parallel after Resolve. Plan depends on Discover; Authorize joins Plan and Inspect; Execute joins Prepare and Authorize. The remainder converges through Collect, Cleanup and validate.
+
+```mermaid
+flowchart LR
+    R["Resolve"] --> P["Prepare"]
+    R --> D["Discover"]
+    R --> I["Inspect"]
+    D --> L["Plan"]
+    L --> A["Authorize"]
+    I --> A
+    P --> E["Execute"]
+    A --> E
+    E --> C["Collect"]
+    C --> K["Cleanup"]
+    K --> V["validate"]
+```
+
+All jobs have short labels and run on successful operations: read-only versus generated execution is a choice *inside* Execute, not two mutually skipped jobs. Inspect validates the execution boundary independently of component discovery. Prepare verifies the checked-out workspace; it **does not** install tools into Execute's separate runner. Consumer dependency installation remains component-owned until an explicit cache/artifact transport is needed. The engine does not automatically transfer filesystem state between jobs.
+
+GitHub cannot insert new native jobs into an active workflow run. A project-owned generated pipeline must use a separate dispatched workflow or supported external backend.
 
 ## Credentials and trust
 
@@ -37,7 +56,7 @@ This branch is an integration candidate, not a tagged v1 release. Passing engine
 
 GitHub supports action self-references such as `uses: $/`, but some current versions of `act` do not. A consumer's local-only launcher may stage a temporary copy of the exact pinned reusable workflow and translate those self-references to `Kooraseru-Hub/CI-Engine@<sha>`. This must happen only inside a disposable checkout; do not edit the hosted engine workflow or replace `$/` with a moving branch ref.
 
-## Credential boundary for a linear graph
+## Credential boundary for a universal graph
 
 GitHub permissions are job-scoped. The single `Execute Pipeline` job has `id-token: write` so it can run a trusted generated adapter when authorized; read-only components do **not** receive the OIDC token vending variables or bootstrap credentials in their subprocess environments. The job uses the separate `ci-readonly` environment for unprivileged execution and the selected protected environment for generated operations. External OIDC trusted-publisher registrations must trust only the protected publishing environment, never `ci-readonly`.
 
