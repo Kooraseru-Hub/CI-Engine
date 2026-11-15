@@ -38,7 +38,7 @@ jobs:
       publication: ${{ steps.route.outputs.publication }}
     steps:
       - name: Checkout consumer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -61,7 +61,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout consumer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Prepare workspace
@@ -83,7 +83,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout consumer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Discover declared work
@@ -104,7 +104,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout consumer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Inspect event and trust policy
@@ -125,7 +125,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout consumer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Build validated execution graph
@@ -150,7 +150,7 @@ jobs:
       environment: ${{ steps.permission.outputs.environment }}
     steps:
       - name: Checkout consumer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Validate trust boundary
@@ -176,7 +176,7 @@ jobs:
       name: ${{ needs.authorize.outputs.mode == 'generated' && needs.authorize.outputs.environment || 'ci-readonly' }}
     steps:
       - name: Checkout consumer
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
