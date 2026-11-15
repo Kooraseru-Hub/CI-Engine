@@ -29,3 +29,15 @@ A component's `requires` entries name capabilities. The engine includes their el
 The original Template's credential selector, publication logic, GitHub resource management, and generated eight-job controller are **not imported**. They are project-specific or need a separate trust review. The privileged backend remains unimplemented; this extraction does not grant publication rights.
 
 The engine's own PR verification executes contract/planner regression tests without any dependency on Template.
+
+## Reusable GitHub workflow contract
+
+A consumer keeps one permanent `.github/workflows/ci.yml` with a job that calls `Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml@<commit>`. This workflow owns generic **Resolve → Execute → Validate** jobs, and a separate generated-execution job protected by the repository's default-branch and GitHub environment checks. It has `workflow_call` only – it does not create a second manually runnable workflow.
+
+The consumer's `.github/config/ci/engine.json` declares events, operations, component roots, and execution adapters. `readonly` operations discover component manifests and run without credentials. `generated` operations select a configured command-array adapter only after GitHub has admitted a trusted default-branch job; the adapter may generate GitHub-native workflows, create temporary branches, watch runs, and clean up. The engine never chooses a programming language, project branch name, or publication target. Nonzero adapter exits fail the required `validate` job. A manually requested publication requires explicit confirmation.
+
+For repositories in different GitHub organizations, `secrets: inherit` is not portable. The reusable workflow instead accepts optional `app_private_key` and `bootstrap_token` named secret inputs. The simple caller can map conventional `CI_APP_PRIVATE_KEY` / `CI_TOKEN` GitHub secrets to them. The generated job alone receives them, alongside `vars.CI_APP_ID`, `id-token: write`, and its protected GitHub environment. The external publisher must still be registered with its OIDC trust provider; this workflow cannot manufacture that trust.
+
+The caller must pin the reusable workflow by a **full commit SHA**. The GitHub Actions `actions.lock` file in this repository pins the actions used by the engine workflow; a caller's lockfile does not cover external reusable workflow dependencies. No credentials or operational settings are stored in the engine itself.
+
+The original first-pass read-only-only workflow is superseded by this capability-based adapter contract. Privileged execution is available **only through trusted project-provided adapters**; the engine deliberately does not include application-specific publishers.

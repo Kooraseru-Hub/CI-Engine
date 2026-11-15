@@ -58,14 +58,14 @@ local manual = table.clone(trusted)
 manual.requested = "build"
 manual.confirmPublish = false
 check("trusted build without publication", not Operation.Resolve(cfg, manual).publication)
-rejects("reject generated execution without adapter", function()
+do
     local old = cfg.operations.build.execution
     cfg.operations.build.execution = nil
     local ok = pcall(function() Operation.Resolve(cfg, manual) end)
     cfg.operations.build.execution = old
-    if ok then error("accepted",0) end
-    error("invalid adapter",0)
-end)
+    check("missing generated adapter rejected", not ok)
+end
+
 rejects("no privilege-escalating read-only command", function()
     local copy = table.clone(cfg)
     local operations = table.clone(cfg.operations)

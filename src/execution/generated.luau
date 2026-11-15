@@ -23,7 +23,7 @@ function Generated.Run(route: any, context: any): ()
     local environment = table.clone(Process.env)
     environment.CI_EVENT = "push"
     environment.CI_OPERATION = route.plan
-    environment.CI_PROFILE = operation.profile or "source-ci"
+    environment.CI_PROFILE = operation.execution.profile or "source-ci"
     environment.CI_PUBLICATION_ENABLED = if route.publication then "true" else "false"
     environment.CI_EXECUTION_PREFIX = route.branchPrefix
     environment.CI_ENGINE_OPERATION = route.name
