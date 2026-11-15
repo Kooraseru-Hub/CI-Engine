@@ -16,22 +16,22 @@ inputs:
 outputs:
   operation:
     description: Validated operation
-    value: ${{ steps.engine.outputs.operation }
+    value: ${{ steps.engine.outputs.operation }}
   mode:
     description: Validated execution mode
-    value: ${{ steps.engine.outputs.mode }
+    value: ${{ steps.engine.outputs.mode }}
   environment:
     description: Trusted execution environment
-    value: ${{ steps.engine.outputs.environment }
+    value: ${{ steps.engine.outputs.environment }}
   plan:
     description: Generated execution plan
-    value: ${{ steps.engine.outputs.plan }
+    value: ${{ steps.engine.outputs.plan }}
   publication:
     description: Whether this operation permits publication
-    value: ${{ steps.engine.outputs.publication }
+    value: ${{ steps.engine.outputs.publication }}
   branch_prefix:
     description: Generated temporary branch namespace
-    value: ${{ steps.engine.outputs.branch_prefix }
+    value: ${{ steps.engine.outputs.branch_prefix }}
 runs:
   using: composite
   steps:
@@ -39,16 +39,16 @@ runs:
       uses: jdx/mise-action@v5
       with:
         version: "2026.11.8"
-        working_directory: ${{ github.action_path }
+        working_directory: ${{ github.action_path }}
         install: true
     - name: Run selected engine phase
       id: engine
       shell: bash
-      working-directory: ${{ github.workspace }
+      working-directory: ${{ github.workspace }}
       env:
-        CI_REQUESTED_OPERATION: ${{ inputs.operation }
-        CI_REQUESTED_PUBLISH: ${{ inputs.publish }
-        CI_ENGINE_PHASE: ${{ inputs.phase }
+        CI_REQUESTED_OPERATION: ${{ inputs.operation }}
+        CI_REQUESTED_PUBLISH: ${{ inputs.publish }}
+        CI_ENGINE_PHASE: ${{ inputs.phase }}
       run: |
         set -euo pipefail
         mise -C "$GITHUB_ACTION_PATH" exec -- bash -c 'cd "$GITHUB_WORKSPACE" && exec lute run "$GITHUB_ACTION_PATH/src/init.luau"'
