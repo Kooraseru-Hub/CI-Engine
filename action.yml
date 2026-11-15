@@ -10,7 +10,7 @@ inputs:
     required: false
     default: "false"
   phase:
-    description: resolve, execute, or generated
+    description: resolve, execute, native, or generated
     required: false
     default: execute
 outputs:
@@ -26,6 +26,9 @@ outputs:
   plan:
     description: Generated execution plan
     value: ${{ steps.engine.outputs.plan }}
+  native:
+    description: Whether the read-only operation declares a native execution adapter
+    value: ${{ steps.engine.outputs.native }}
   publication:
     description: Whether this operation permits publication
     value: ${{ steps.engine.outputs.publication }}
