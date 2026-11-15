@@ -61,3 +61,12 @@ GitHub supports action self-references such as `uses: $/`, but some current vers
 GitHub permissions are job-scoped. The single `Execute Pipeline` job has `id-token: write` so it can run a trusted generated adapter when authorized; read-only components do **not** receive the OIDC token vending variables or bootstrap credentials in their subprocess environments. The job uses the separate `ci-readonly` environment for unprivileged execution and the selected protected environment for generated operations. External OIDC trusted-publisher registrations must trust only the protected publishing environment, never `ci-readonly`.
 
 If strict job-level least privilege is required, the alternative is to split the read-only and privileged lanes into distinct GitHub jobs. That would reintroduce the skipped execution branch in the graph; it is a deliberate design tradeoff and must be revisited when changing trust policies.
+
+
+## Native source-push validation
+
+A repository can declare an optional `native.command` in a read-only operation (for example, `validation`). On a **push to its configured default branch only**, the reusable workflow runs the ordinary read-only components, then invokes the declared command to create and monitor a build-only native execution tree. Ordinary feature-branch pushes, PRs, and manual read-only runs do not receive this launch credential. No new permanent workflow or job branch is added.
+
+The native launch step receives an explicit short-lived repository-scoped GitHub App token or a separately configured `bootstrap_token`; the default `GITHUB_TOKEN` cannot trigger push workflows when it creates a branch. The source-push Execute stage runs under the configured `ci-bootstrap` environment, while all untrusted read-only runs remain under `ci-readonly`. Repository maintainers must scope environment protection and the GitHub App's Contents/Workflows permissions correctly.
+
+The native adapter is supplied by the consuming repository and must fail when its generated run fails. The engine does not automatically publish packages, pages, releases or branches; those are separate, explicitly authorized operations.
