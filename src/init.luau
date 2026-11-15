@@ -65,6 +65,31 @@ local function main(): ()
         print("CI Engine: project tool dependencies remain component-owned")
         return
     end
+    if phase == "inspect" then
+        -- Independent of component discovery. Verify the selected execution
+        -- boundary and repository event context before authorization.
+        if route.mode == "readonly" then
+            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
+            if type(root) ~= "string" or not Component.ValidRoot(root) then
+                fail("unsafe read-only component root")
+            end
+            if route.operation.publication == true or route.operation.execution ~= nil then
+                fail("read-only operation cannot request privileged execution")
+            end
+            print("CI Engine: inspected read-only policy and safe component root")
+        else
+            if context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch
+                or context.event == "pull_request" then
+                fail("generated execution requires a trusted default-branch event")
+            end
+            if type(route.operation.execution) ~= "table"
+                or type(route.operation.execution.command) ~= "table" then
+                fail("generated execution adapter is missing")
+            end
+            print("CI Engine: inspected generated policy for " .. route.environment)
+        end
+        return
+    end
     if phase == "discover" or phase == "plan" then
         if route.mode == "readonly" then
             local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
