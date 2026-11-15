@@ -112,6 +112,8 @@ check("native adapter output crosses authorization job boundary",
     workflow:find("native: ${{ steps.permission.outputs.native }}", 1, true) ~= nil)
 check("trusted source-push execution checks native adapter output",
     workflow:find("needs.authorize.outputs.native == 'true'", 1, true) ~= nil)
+check("manual validation permits a guarded default-branch native launch",
+    workflow:find("github.event_name == 'workflow_dispatch'", 1, true) ~= nil)
 
 local expected: { [string]: { string } } = {
     resolve = {},
