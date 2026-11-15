@@ -1,33 +1,285 @@
-name: Bootstrap
+name: CI Engine
 
 on:
   workflow_call:
     inputs:
       operation:
-        description: Optional operation identifier; empty selects the event route
+        description: Optional operation override for workflow_dispatch
         type: string
         required: false
         default: ""
+      publish:
+        description: Explicit manual publication confirmation
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      app_private_key:
+        description: Optional GitHub App private key for trusted publication
+        required: false
+      bootstrap_token:
+        description: Optional scoped bootstrap token for trusted publication
+        required: false
 
 permissions:
   contents: read
 
 jobs:
-  bootstrap:
-    name: Bootstrap
+  resolve:
+    name: Resolve
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    timeout-minutes: 15
     permissions:
       contents: read
+    outputs:
+      operation: ${{ steps.route.outputs.operation }}
+      mode: ${{ steps.route.outputs.mode }}
+      environment: ${{ steps.route.outputs.environment }}
+      publication: ${{ steps.route.outputs.publication }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Run engine
+      - name: Resolve configured operation
+        id: route
         uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         with:
+          phase: resolve
           operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  prepare:
+    name: Prepare
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare workspace
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_ENGINE_SELECTED_OPERATION: ${{ needs.resolve.outputs.operation }}
+        with:
+          phase: prepare
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  discover:
+    name: Discover
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Discover declared work
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: discover
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  inspect:
+    name: Inspect
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect event and trust policy
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: inspect
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  plan:
+    name: Plan
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build validated execution graph
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: plan
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  authorize:
+    name: Authorize
+    needs: [plan, inspect]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      operation: ${{ steps.permission.outputs.operation }}
+      mode: ${{ steps.permission.outputs.mode }}
+      environment: ${{ steps.permission.outputs.environment }}
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate trust boundary
+        id: permission
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: authorize
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  execute:
+    name: Execute
+    needs: [prepare, authorize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    environment:
+      name: ${{ needs.authorize.outputs.mode == 'generated' && needs.authorize.outputs.environment || 'ci-readonly' }}
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Execute read-only components
+        if: ${{ needs.authorize.outputs.mode == 'readonly' }}
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
+        with:
+          phase: execute
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+      - name: Execute trusted generated adapter
+        if: ${{ needs.authorize.outputs.mode == 'generated' && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
+          CI_CREDENTIAL_ENVIRONMENT: ${{ needs.authorize.outputs.environment }}
+          CI_CREDENTIAL_APP_ID: ${{ vars.CI_APP_ID }}
+          CI_CREDENTIAL_APP_PRIVATE_KEY: ${{ secrets.app_private_key }}
+          CI_CREDENTIAL_BOOTSTRAP_TOKEN: ${{ secrets.bootstrap_token }}
+          GH_TOKEN: ${{ github.token }}
+        with:
+          phase: generated
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+      - name: Preserve code review diagnostics
+        if: ${{ always() && needs.authorize.outputs.mode == 'readonly' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-review-findings
+          path: build/code-review/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Preserve rules diagnostics
+        if: ${{ always() && needs.authorize.outputs.mode == 'readonly' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: rules-audit-findings
+          path: build/rules-audit/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Preserve generated execution results
+        if: ${{ always() && needs.authorize.outputs.mode == 'generated' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: generated-execution
+          path: build/run/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  report:
+    name: Collect
+    needs: execute
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Summarize execution
+        env:
+          EXECUTION_RESULT: ${{ needs.execute.result }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### CI Engine execution"
+            echo ""
+            echo "Execution result: **$EXECUTION_RESULT**"
+            echo ""
+            echo "Project diagnostics and generated-run artifacts are attached to the execution job."
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$EXECUTION_RESULT" = success
+
+  cleanup:
+    name: Cleanup
+    needs: report
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Finalize engine lifecycle
+        env:
+          REPORT_RESULT: ${{ needs.report.result }}
+        run: |
+          set -euo pipefail
+          echo "CI Engine: runner workspaces are ephemeral."
+          echo "CI Engine: the generated execution adapter owns cleanup of its remote branches and artifacts."
+          test "$REPORT_RESULT" = success
+
+  validate:
+    name: validate
+    needs: cleanup
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require completed pipeline
+        env:
+          CLEANUP_RESULT: ${{ needs.cleanup.result }}
+        run: |
+          set -euo pipefail
+          test "$CLEANUP_RESULT" = success

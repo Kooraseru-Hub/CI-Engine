@@ -1,190 +1,146 @@
 --!strict
--- Portable bootstrap. No repo-specific code, application secrets, or Node controller.
+-- Stable, language-neutral entry point for independently reusable engine stages.
 local Fs = require("@std/fs")
 local Process = require("@lute/process")
-local Json = require("@std/json")
-
-type Record = { [string]: any }
+local Json = require("@engine/configuration/json")
+local Component = require("@engine/contracts/component")
+local Discovery = require("@engine/discovery/components")
+local Graph = require("@engine/planning/graph")
+local ReadOnly = require("@engine/execution/readonly")
+local Operation = require("@engine/configuration/operation")
+local Generated = require("@engine/execution/generated")
 
 local function fail(message: string): never
     error("CI Engine: " .. message, 0)
 end
 
-local function record(value: any, where: string): Record
-    if type(value) ~= "table" then fail(where .. " must be a table") end
-    return value :: Record
-end
-
-local function strings(value: any, where: string): { string }
-    if type(value) ~= "table" then fail(where .. " must be an array") end
-    local result: { string } = {}
-    for i, item in value do
-        if type(i) ~= "number" or i % 1 ~= 0 or i < 1 or type(item) ~= "string" or item == "" then
-            fail(where .. " must be an array of nonempty strings")
-        end
-        result[i] = item
+local function load(path: string): any
+    if not Component.ValidRoot(path) or not Fs.exists(path) then
+        fail("missing or unsafe configuration: " .. path)
     end
-    for i = 1, #result do
-        if not result[i] then fail(where .. " must be dense") end
-    end
-    return result
-end
-
-local function unique(items: { string }): { string }
-    local found: { [string]: boolean } = {}
-    local out: { string } = {}
-    for _, item in items do
-        if not found[item] then
-            found[item] = true
-            table.insert(out, item)
-        end
-    end
-    table.sort(out)
-    return out
-end
-
-local function selected(identity: string, patterns: { string }): boolean
-    for _, pattern in patterns do
-        if pattern == "*" or pattern == identity then return true end
-        if pattern:sub(-2) == "/*" and identity:sub(1, #pattern - 1) == pattern:sub(1, -2) then
-            return true
-        end
-    end
-    return false
-end
-
-local function run(command: { string }, environment: { [string]: string }?): ()
-    local options: Process.ProcessRunOptions = {
-        cwd = Process.cwd(),
-        stdio = "inherit",
-        env = environment or Process.env,
-    }
-    local result = Process.run(command, options)
-    if not result.ok then fail("command failed (" .. tostring(result.exitcode) .. "): " .. command[1]) end
-end
-
-local function load(path: string): Record
-    if not Fs.exists(path) then fail("missing configuration: " .. path) end
-    local ok, result = pcall(function()
-        return Json.deserialize(Fs.readFileToString(path))
+    local ok, value = pcall(function()
+        return Json.decode(Fs.readFileToString(path))
     end)
-    if not ok then fail("invalid JSON in " .. path .. ": " .. tostring(result)) end
-    return record(result, path)
+    if not ok or type(value) ~= "table" then
+        fail("invalid JSON object in " .. path)
+    end
+    return value
 end
 
-local function discover(root: string): { [string]: Record }
-    if not root:match("^[%w_./-]+$") or root:sub(1, 1) == "/" or root:find("%.%.") then
-        fail("unsafe component root")
-    end
-    local listing = Process.run({ "git", "ls-files", "--stage", "--", root }, { cwd = Process.cwd() })
-    if not listing.ok then fail("unable to inspect tracked components") end
-    local found: { [string]: Record } = {}
-    for line in listing.stdout:gmatch("[^\r\n]+") do
-        local mode, path = line:match("^(%d+)%s+[%da-fA-F]+%s+%d+\t(.+)$")
-        if not mode or not path then fail("invalid git index entry") end
-        if mode == "120000" or mode == "160000" then fail("linked component entry: " .. path) end
-        if path:sub(-15) == "/component.json" then
-            local identity = path:sub(#root + 2, -16)
-            if identity == "" or not identity:match("^[%w_/-]+$") or identity:find("%.%.") then
-                fail("unsafe component identity: " .. identity)
-            end
-            if found[identity] then fail("duplicate component: " .. identity) end
-            local component = load(path)
-            local boundary = component.boundary or "read"
-            if boundary ~= "read" and boundary ~= "privileged" then fail(identity .. ": invalid boundary") end
-            component.boundary = boundary
-            component.requires = strings(component.requires or {}, identity .. ".requires")
-            component.provides = strings(component.provides or {}, identity .. ".provides")
-            component.events = strings(component.events or {}, identity .. ".events")
-            if component.command ~= nil then
-                component.command = strings(component.command, identity .. ".command")
-                if #component.command == 0 then fail(identity .. ": empty command") end
-            end
-            found[identity] = component
-        end
-    end
-    return found
+local function writeOutput(name: string, value: string): ()
+    local path = Process.env.GITHUB_OUTPUT
+    if not path or path == "" then fail("resolve requires GITHUB_OUTPUT") end
+    if name:find("[^%w_]") or value:find("[\r\n]") then fail("unsafe workflow output") end
+    local current = if Fs.exists(path) then Fs.readFileToString(path) else ""
+    local delimiter = if current ~= "" and current:sub(-1) ~= "\n" then "\n" else ""
+    Fs.writeStringToFile(path, current .. delimiter .. name .. "=" .. value .. "\n")
 end
 
 local function main(): ()
-    local configPath = Process.env.CI_ENGINE_CONFIG or ".github/config/ci/engine.json"
-    local config = load(configPath)
-    local event = Process.env.GITHUB_EVENT_NAME or "workflow_dispatch"
-    local routes = record(config.triggers, "triggers")
-    local requested = Process.env.CI_REQUESTED_OPERATION or ""
-    if requested ~= "" and event ~= "workflow_dispatch" then fail("operation override requires workflow_dispatch") end
-    local name = if requested ~= "" then requested else routes[event]
-    if type(name) ~= "string" or name == "" then fail("no configured operation for event " .. event) end
-    local operations = record(config.operations, "operations")
-    local operation = record(operations[name], "operations." .. name)
-    local events = strings(operation.events or {}, "operation.events")
-    if not table.find(events, event) then fail("operation " .. name .. " is not authorized for " .. event) end
-    if event == "push" and operation.branch == "default" then
-        local defaultBranch = Process.env.CI_DEFAULT_BRANCH
-        if not defaultBranch or defaultBranch == "" then fail("missing default branch event context") end
-        if Process.env.GITHUB_REF ~= "refs/heads/" .. defaultBranch then
-            print("CI Engine: non-default branch push excluded by operation policy")
-            return
-        end
+    local config = load(Process.env.CI_ENGINE_CONFIG or ".github/config/ci/engine.json")
+    local context = Operation.Context(Process.env)
+    local route = Operation.Resolve(config, context)
+    local phase = Process.env.CI_ENGINE_PHASE or "execute"
+    local expected = Process.env.CI_ENGINE_SELECTED_OPERATION
+    if expected and expected ~= "" and expected ~= route.name then
+        fail("operation selection changed after the resolve job")
     end
-    if operation.mode ~= "readonly" then fail("operation " .. name .. " requires an isolated privileged backend; refusing execution") end
-    local patterns = strings(operation.components or {}, "operation.components")
-    if #patterns == 0 then fail("operation " .. name .. " selects no components") end
 
-    local components = discover(config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components")
-    local active: { [string]: Record } = {}
-    local providers: { [string]: string } = {}
-    for identity, component in components do
-        if selected(identity, patterns) and component.enabled ~= false
-            and (#component.events == 0 or table.find(component.events, event)) then
-            if component.boundary ~= "read" or #(component.credentials or {}) > 0 then
-                fail("privileged component selected by read-only operation: " .. identity)
+    if phase == "resolve" then
+        writeOutput("operation", route.name)
+        writeOutput("mode", route.mode)
+        writeOutput("environment", route.environment)
+        writeOutput("plan", route.plan)
+        writeOutput("publication", if route.publication then "true" else "false")
+        writeOutput("branch_prefix", route.branchPrefix)
+        print("CI Engine: " .. route.name .. " selected (" .. route.mode .. ")")
+        return
+    end
+    if phase == "prepare" then
+        local result = Process.run({ "git", "rev-parse", "--is-inside-work-tree" }, { cwd = Process.cwd() })
+        if not result.ok or not result.stdout:find("true", 1, true) then
+            fail("prepare requires a Git working tree")
+        end
+        print("CI Engine: workspace prepared for " .. route.name)
+        print("CI Engine: project tool dependencies remain component-owned")
+        return
+    end
+    if phase == "inspect" then
+        -- Independent of component discovery. Verify the selected execution
+        -- boundary and repository event context before authorization.
+        if route.mode == "readonly" then
+            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
+            if type(root) ~= "string" or not Component.ValidRoot(root) then
+                fail("unsafe read-only component root")
             end
-            active[identity] = component
-            for _, capability in component.provides do
-                if providers[capability] then fail("ambiguous capability " .. capability) end
-                providers[capability] = identity
+            if route.operation.publication == true or route.operation.execution ~= nil then
+                fail("read-only operation cannot request privileged execution")
             end
+            print("CI Engine: inspected read-only policy and safe component root")
+        else
+            if context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch
+                or context.event == "pull_request" then
+                fail("generated execution requires a trusted default-branch event")
+            end
+            if type(route.operation.execution) ~= "table"
+                or type(route.operation.execution.command) ~= "table" then
+                fail("generated execution adapter is missing")
+            end
+            print("CI Engine: inspected generated policy for " .. route.environment)
         end
+        return
     end
+    if phase == "discover" or phase == "plan" then
+        if route.mode == "readonly" then
+            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
+            if type(root) ~= "string" or not Component.ValidRoot(root) then fail("unsafe component root") end
+            local components = Discovery.Load(root)
+            if phase == "discover" then
+                local count = 0
+                for _ in components do count += 1 end
+                if count == 0 then fail("no component contracts discovered") end
+                print("CI Engine: discovered " .. count .. " tracked component contracts")
+            else
+                local plan = Graph.Plan(components, route.operation.components, context.event, route.mode)
+                if #plan.ordered == 0 then fail("no components selected by " .. route.name) end
+                print("CI Engine: execution plan (" .. #plan.ordered .. " components)")
+                for position, identity in plan.ordered do
+                    print(position .. ". " .. identity)
+                end
+            end
+        else
+            print("CI Engine: " .. phase .. " delegates the native graph to the declared generated adapter")
+        end
+        return
+    end
+    if phase == "authorize" then
+        writeOutput("mode", route.mode)
+        writeOutput("environment", route.environment)
+        writeOutput("operation", route.name)
+        if route.mode == "generated" then
+            if context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch then
+                fail("untrusted event cannot authorize generated execution")
+            end
+            print("CI Engine: trusted execution authorized for environment " .. route.environment)
+        else
+            print("CI Engine: read-only execution authorized without publishing credentials")
+        end
+        return
+    end
+    if phase == "generated" then
+        Generated.Run(route, context)
+        print("CI Engine: generated operation completed successfully")
+        return
+    end
+    if phase ~= "execute" then fail("unknown engine phase: " .. phase) end
+    if route.mode ~= "readonly" then fail("privileged work cannot run in read-only executor") end
 
-    local visiting: { [string]: boolean } = {}
-    local done: { [string]: boolean } = {}
-    local ordered: { string } = {}
-    local function visit(identity: string): ()
-        if visiting[identity] then fail("dependency cycle at " .. identity) end
-        if done[identity] then return end
-        local component = active[identity]
-        if not component then fail("missing selected component " .. identity) end
-        visiting[identity] = true
-        for _, capability in unique(component.requires) do
-            local dependency = providers[capability]
-            if not dependency then fail(identity .. " requires unavailable capability " .. capability) end
-            visit(dependency)
-        end
-        visiting[identity] = nil
-        done[identity] = true
-        table.insert(ordered, identity)
-    end
-    local names: { string } = {}
-    for identity in active do table.insert(names, identity) end
-    table.sort(names)
-    for _, identity in names do visit(identity) end
-
-    print("CI Engine: " .. name .. " (" .. event .. "), " .. #ordered .. " component(s)")
-    for _, identity in ordered do
-        local component = active[identity]
-        local command = component.command
-        if not command then
-            fail(identity .. ": module-backed components require an explicit adapter; refusing fallback")
-        end
-        local environment = table.clone(Process.env)
-        environment.GH_TOKEN = ""
-        environment.GITHUB_TOKEN = ""
-        print("::group::" .. identity)
-        run(command, environment)
-        print("::endgroup::")
-    end
+    local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
+    if type(root) ~= "string" or not Component.ValidRoot(root) then fail("unsafe component root") end
+    local components = Discovery.Load(root)
+    local plan = Graph.Plan(components, route.operation.components, context.event, route.mode)
+    print("CI Engine: " .. route.name .. " (" .. context.event .. "), " .. #plan.ordered .. " component(s)")
+    ReadOnly.Run(plan.ordered, components)
     print("CI Engine: operation completed successfully")
 end
 
