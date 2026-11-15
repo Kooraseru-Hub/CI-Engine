@@ -105,6 +105,14 @@ check("exit failure mapping", Outcome.FromExitCode(1) == "failed")
 -- Controller topology regression: one root, convergent asynchronous branches.
 local Fs = require("@std/fs")
 local workflow = Fs.readFileToString(".github/workflows/bootstrap.yml")
+local action = Fs.readFileToString("action.yml")
+check("native adapter output crosses composite action boundary",
+    action:find("value: ${{ steps.engine.outputs.native }}", 1, true) ~= nil)
+check("native adapter output crosses authorization job boundary",
+    workflow:find("native: ${{ steps.permission.outputs.native }}", 1, true) ~= nil)
+check("trusted source-push execution checks native adapter output",
+    workflow:find("needs.authorize.outputs.native == 'true'", 1, true) ~= nil)
+
 local expected: { [string]: { string } } = {
     resolve = {},
     prepare = { "resolve" },
