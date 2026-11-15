@@ -52,6 +52,7 @@ local function main(): ()
         writeOutput("environment", route.environment)
         writeOutput("plan", route.plan)
         writeOutput("publication", if route.publication then "true" else "false")
+        writeOutput("native", if route.mode == "readonly" and route.operation.native ~= nil then "true" else "false")
         writeOutput("branch_prefix", route.branchPrefix)
         print("CI Engine: " .. route.name .. " selected (" .. route.mode .. ")")
         return
@@ -117,6 +118,7 @@ local function main(): ()
         writeOutput("mode", route.mode)
         writeOutput("environment", route.environment)
         writeOutput("operation", route.name)
+        writeOutput("native", if route.mode == "readonly" and route.operation.native ~= nil then "true" else "false")
         if route.mode == "generated" then
             if context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch then
                 fail("untrusted event cannot authorize generated execution")
@@ -125,6 +127,25 @@ local function main(): ()
         else
             print("CI Engine: read-only execution authorized without publishing credentials")
         end
+        return
+    end
+    if phase == "native" then
+        if route.mode ~= "readonly" or context.event ~= "push" or
+            context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch then
+            fail("native validation requires a trusted default-branch push")
+        end
+        if route.operation.native == nil then
+            print("CI Engine: no native validation adapter configured")
+            return
+        end
+        local command = route.operation.native.command
+        if type(command) ~= "table" or #command == 0 then fail("missing native validation command") end
+        local environment = table.clone(Process.env)
+        environment.CI_ENGINE_OPERATION = route.name
+        print("::group::Launch native validation")
+        local result = Process.run(command, { cwd = Process.cwd(), stdio = "inherit", env = environment })
+        if not result.ok then fail("native validation failed (" .. tostring(result.exitcode) .. ")") end
+        print("::endgroup::")
         return
     end
     if phase == "generated" then
