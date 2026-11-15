@@ -27,18 +27,18 @@ permissions:
 jobs:
   resolve:
     name: Resolve Operation
-    if: ${{ github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }
+    if: ${{ github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
     outputs:
-      operation: ${{ steps.route.outputs.operation }
-      mode: ${{ steps.route.outputs.mode }
-      environment: ${{ steps.route.outputs.environment }
-      plan: ${{ steps.route.outputs.plan }
-      publication: ${{ steps.route.outputs.publication }
-      branch_prefix: ${{ steps.route.outputs.branch_prefix }
+      operation: ${{ steps.route.outputs.operation }}
+      mode: ${{ steps.route.outputs.mode }}
+      environment: ${{ steps.route.outputs.environment }}
+      plan: ${{ steps.route.outputs.plan }}
+      publication: ${{ steps.route.outputs.publication }}
+      branch_prefix: ${{ steps.route.outputs.branch_prefix }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v4
@@ -49,16 +49,16 @@ jobs:
         id: route
         uses: $/
         env:
-          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         with:
           phase: resolve
-          operation: ${{ inputs.operation }
-          publish: ${{ inputs.publish }
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
 
   execute:
     name: Execute Selected Components
     needs: resolve
-    if: ${{ needs.resolve.outputs.mode == 'readonly' }
+    if: ${{ needs.resolve.outputs.mode == 'readonly' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -72,12 +72,12 @@ jobs:
       - name: Execute project components
         uses: $/
         env:
-          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }
-          CI_ENGINE_SELECTED_OPERATION: ${{ needs.resolve.outputs.operation }
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_ENGINE_SELECTED_OPERATION: ${{ needs.resolve.outputs.operation }}
         with:
           phase: execute
-          operation: ${{ inputs.operation }
-          publish: ${{ inputs.publish }
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
       - name: Preserve code review diagnostics
         if: always()
         uses: actions/upload-artifact@v7
@@ -98,7 +98,7 @@ jobs:
   generated:
     name: Execute Configured Pipeline
     needs: resolve
-    if: ${{ needs.resolve.outputs.mode == 'generated' && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }
+    if: ${{ needs.resolve.outputs.mode == 'generated' && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -106,7 +106,7 @@ jobs:
       actions: read
       id-token: write
     environment:
-      name: ${{ needs.resolve.outputs.environment }
+      name: ${{ needs.resolve.outputs.environment }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v4
@@ -116,17 +116,17 @@ jobs:
       - name: Execute trusted generated adapter
         uses: $/
         env:
-          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }
-          CI_ENGINE_SELECTED_OPERATION: ${{ needs.resolve.outputs.operation }
-          CI_CREDENTIAL_ENVIRONMENT: ${{ needs.resolve.outputs.environment }
-          CI_CREDENTIAL_APP_ID: ${{ vars.CI_APP_ID }
-          CI_CREDENTIAL_APP_PRIVATE_KEY: ${{ secrets.app_private_key }
-          CI_CREDENTIAL_BOOTSTRAP_TOKEN: ${{ secrets.bootstrap_token }
-          GH_TOKEN: ${{ github.token }
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_ENGINE_SELECTED_OPERATION: ${{ needs.resolve.outputs.operation }}
+          CI_CREDENTIAL_ENVIRONMENT: ${{ needs.resolve.outputs.environment }}
+          CI_CREDENTIAL_APP_ID: ${{ vars.CI_APP_ID }}
+          CI_CREDENTIAL_APP_PRIVATE_KEY: ${{ secrets.app_private_key }}
+          CI_CREDENTIAL_BOOTSTRAP_TOKEN: ${{ secrets.bootstrap_token }}
+          GH_TOKEN: ${{ github.token }}
         with:
           phase: generated
-          operation: ${{ inputs.operation }
-          publish: ${{ inputs.publish }
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
       - name: Preserve generated execution results
         if: always()
         uses: actions/upload-artifact@v7
@@ -138,7 +138,7 @@ jobs:
 
   validate:
     name: validate
-    if: ${{ always() && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }
+    if: ${{ always() && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}
     needs: [resolve, execute, generated]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -146,10 +146,10 @@ jobs:
     steps:
       - name: Require completed selected operation
         env:
-          RESOLVE: ${{ needs.resolve.result }
-          MODE: ${{ needs.resolve.outputs.mode }
-          EXECUTE: ${{ needs.execute.result }
-          GENERATED: ${{ needs.generated.result }
+          RESOLVE: ${{ needs.resolve.result }}
+          MODE: ${{ needs.resolve.outputs.mode }}
+          EXECUTE: ${{ needs.execute.result }}
+          GENERATED: ${{ needs.generated.result }}
         run: |
           set -euo pipefail
           test "$RESOLVE" = success
