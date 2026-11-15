@@ -38,6 +38,12 @@ function ReadOnly.Run(ordered: { string }, components: { [string]: any }): ()
         local environment = table.clone(Process.env)
         environment.GH_TOKEN = ""
         environment.GITHUB_TOKEN = ""
+        -- A universal execution job may have OIDC permission for its trusted
+        -- lane; never expose the token vending endpoints to project commands.
+        environment.ACTIONS_ID_TOKEN_REQUEST_URL = ""
+        environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN = ""
+        environment.CI_CREDENTIAL_APP_PRIVATE_KEY = ""
+        environment.CI_CREDENTIAL_BOOTSTRAP_TOKEN = ""
         environment.CI_COMPONENT = identity
         print("::group::" .. identity)
         local ok, result = pcall(Process.run, command, {
