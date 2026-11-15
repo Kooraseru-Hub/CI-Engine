@@ -27,7 +27,6 @@ permissions:
 jobs:
   resolve:
     name: Resolve Operation
-    if: ${{ github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -36,9 +35,7 @@ jobs:
       operation: ${{ steps.route.outputs.operation }}
       mode: ${{ steps.route.outputs.mode }}
       environment: ${{ steps.route.outputs.environment }}
-      plan: ${{ steps.route.outputs.plan }}
       publication: ${{ steps.route.outputs.publication }}
-      branch_prefix: ${{ steps.route.outputs.branch_prefix }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v4
@@ -55,21 +52,110 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
 
-  execute:
-    name: Execute Selected Components
+  prepare:
+    name: Prepare Dependencies
     needs: resolve
-    if: ${{ needs.resolve.outputs.mode == 'readonly' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
+      - name: Prepare workspace
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_ENGINE_SELECTED_OPERATION: ${{ needs.resolve.outputs.operation }}
+        with:
+          phase: prepare
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  discover:
+    name: Discover Components
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Discover declared work
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: discover
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  plan:
+    name: Plan Execution
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build validated execution graph
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: plan
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  authorize:
+    name: Authorize Operation
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate trust boundary
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: authorize
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  execute:
+    name: Execute Pipeline
+    needs: [authorize, resolve]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    environment:
+      name: ${{ needs.resolve.outputs.mode == 'generated' && needs.resolve.outputs.environment || 'ci-readonly' }}
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Execute project components
+      - name: Execute read-only components
+        if: ${{ needs.resolve.outputs.mode == 'readonly' }}
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -78,42 +164,8 @@ jobs:
           phase: execute
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
-      - name: Preserve code review diagnostics
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: code-review-findings
-          path: build/code-review/
-          if-no-files-found: ignore
-          retention-days: 7
-      - name: Preserve rules diagnostics
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: rules-audit-findings
-          path: build/rules-audit/
-          if-no-files-found: ignore
-          retention-days: 7
-
-  generated:
-    name: Execute Configured Pipeline
-    needs: resolve
-    if: ${{ needs.resolve.outputs.mode == 'generated' && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-    environment:
-      name: ${{ needs.resolve.outputs.environment }}
-    steps:
-      - name: Checkout consumer
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
       - name: Execute trusted generated adapter
+        if: ${{ needs.resolve.outputs.mode == 'generated' && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -127,8 +179,24 @@ jobs:
           phase: generated
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
+      - name: Preserve code review diagnostics
+        if: ${{ always() && needs.resolve.outputs.mode == 'readonly' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-review-findings
+          path: build/code-review/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Preserve rules diagnostics
+        if: ${{ always() && needs.resolve.outputs.mode == 'readonly' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: rules-audit-findings
+          path: build/rules-audit/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Preserve generated execution results
-        if: always()
+        if: ${{ always() && needs.resolve.outputs.mode == 'generated' }}
         uses: actions/upload-artifact@v7
         with:
           name: generated-execution
@@ -136,25 +204,56 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
 
-  validate:
-    name: validate
-    if: ${{ always() && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}
-    needs: [resolve, execute, generated]
+  report:
+    name: Collect Results
+    needs: execute
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
     steps:
-      - name: Require completed selected operation
+      - name: Summarize execution
         env:
-          RESOLVE: ${{ needs.resolve.result }}
-          MODE: ${{ needs.resolve.outputs.mode }}
-          EXECUTE: ${{ needs.execute.result }}
-          GENERATED: ${{ needs.generated.result }}
+          EXECUTION_RESULT: ${{ needs.execute.result }}
         run: |
           set -euo pipefail
-          test "$RESOLVE" = success
-          case "$MODE" in
-            readonly) test "$EXECUTE" = success ;;
-            generated) test "$GENERATED" = success ;;
-            *) echo "No valid operation completed" >&2; exit 1 ;;
-          esac
+          {
+            echo "### CI Engine execution"
+            echo ""
+            echo "Execution result: **$EXECUTION_RESULT**"
+            echo ""
+            echo "Project diagnostics and generated-run artifacts are attached to the execution job."
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$EXECUTION_RESULT" = success
+
+  cleanup:
+    name: Cleanup
+    needs: report
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Finalize engine lifecycle
+        env:
+          REPORT_RESULT: ${{ needs.report.result }}
+        run: |
+          set -euo pipefail
+          echo "CI Engine: runner workspaces are ephemeral."
+          echo "CI Engine: the generated execution adapter owns cleanup of its remote branches and artifacts."
+          test "$REPORT_RESULT" = success
+
+  validate:
+    name: validate
+    needs: cleanup
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require completed pipeline
+        env:
+          CLEANUP_RESULT: ${{ needs.cleanup.result }}
+        run: |
+          set -euo pipefail
+          test "$CLEANUP_RESULT" = success
