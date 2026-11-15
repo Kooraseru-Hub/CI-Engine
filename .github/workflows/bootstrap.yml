@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   resolve:
-    name: Resolve Operation
+    name: Resolve
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -53,7 +53,7 @@ jobs:
           publish: ${{ inputs.publish }}
 
   prepare:
-    name: Prepare Dependencies
+    name: Prepare
     needs: resolve
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -75,8 +75,8 @@ jobs:
           publish: ${{ inputs.publish }}
 
   discover:
-    name: Discover Components
-    needs: prepare
+    name: Discover
+    needs: resolve
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -95,8 +95,29 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
 
+  inspect:
+    name: Inspect
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout consumer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect event and trust policy
+        uses: $/
+        env:
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: inspect
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
   plan:
-    name: Plan Execution
+    name: Plan
     needs: discover
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -117,8 +138,8 @@ jobs:
           publish: ${{ inputs.publish }}
 
   authorize:
-    name: Authorize Operation
-    needs: plan
+    name: Authorize
+    needs: [plan, inspect]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -143,8 +164,8 @@ jobs:
           publish: ${{ inputs.publish }}
 
   execute:
-    name: Execute Pipeline
-    needs: authorize
+    name: Execute
+    needs: [prepare, authorize]
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -210,7 +231,7 @@ jobs:
           retention-days: 3
 
   report:
-    name: Collect Results
+    name: Collect
     needs: execute
     if: ${{ always() }}
     runs-on: ubuntu-latest
