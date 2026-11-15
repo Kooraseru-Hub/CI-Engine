@@ -130,7 +130,7 @@ local function main(): ()
         return
     end
     if phase == "native" then
-        if route.mode ~= "readonly" or context.event ~= "push" or
+        if route.mode ~= "readonly" or (context.event ~= "push" and context.event ~= "workflow_dispatch") or
             context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch then
             fail("native validation requires a trusted default-branch push")
         end
