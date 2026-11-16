@@ -93,6 +93,9 @@ function dispatch(options = {}) {
         !/[\r\n\0]/.test(x))) {
     fail('invalid privileged lifecycle component contract');
   }
+  if (options.validateOnly === true) {
+    return { status: 'validated', component: route.component };
+  }
   if (!Array.isArray(component.credentials) ||
       !component.credentials.every(name => typeof name === 'string' &&
         /^[a-z][a-z0-9_]*$/.test(name) && !!env[name.toUpperCase()])) {
@@ -112,7 +115,7 @@ function dispatch(options = {}) {
 module.exports = { dispatch, select };
 if (require.main === module) {
   try {
-    const outcome = dispatch();
+    const outcome = dispatch({ validateOnly: process.argv.includes('--check') });
     console.log('CI Engine lifecycle: ' + outcome.status +
       (outcome.component ? ' (' + outcome.component + ')' : ''));
   } catch (error) {

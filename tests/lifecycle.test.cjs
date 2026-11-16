@@ -110,6 +110,8 @@ test('reusable workflow contains an isolated privileged lifecycle lane', () => {
   const path = require('node:path');
   const yaml = fs.readFileSync(path.join(__dirname, '../.github/workflows/bootstrap.yml'), 'utf8');
   assert.match(yaml, /^  lifecycle:\s*$/m);
+  assert.match(yaml, /  lifecycle:\n    name: Lifecycle\n    needs: resolve/);
+  assert.match(yaml, /phase: lifecycle-resolve/);
   assert.match(yaml, /if: github\.event_name == 'pull_request_target' && github\.event\.action == 'closed'/);
   assert.match(yaml, /environment: ci-preview-cloudflare/);
   assert.match(yaml, /pull-requests: write/);
@@ -117,4 +119,14 @@ test('reusable workflow contains an isolated privileged lifecycle lane', () => {
   assert.match(yaml, /phase: lifecycle/);
   assert.match(yaml, /needs: \[cleanup, lifecycle\]/);
   assert.match(yaml, /needs\.lifecycle\.result/);
+});
+
+
+test('lifecycle admission runs in Resolve without privileged credentials', () => {
+  const { options, launched } = fixture({ env: { GH_TOKEN: '', CLOUDFLARE_API_TOKEN: '' } });
+  assert.deepEqual(dispatch({ ...options, validateOnly: true }), {
+    status: 'validated', component: 'lifecycle/preview-retire',
+  });
+  assert.equal(launched.length, 0);
+  assert.throws(() => dispatch({ ...options, env: { ...options.env, CI_PREVIEW_CLOSED_NUMBER: '53' }, validateOnly: true }), /event number/);
 });

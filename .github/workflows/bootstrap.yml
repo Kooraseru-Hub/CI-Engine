@@ -30,7 +30,6 @@ permissions:
 jobs:
   resolve:
     name: Resolve
-    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -49,6 +48,7 @@ jobs:
           persist-credentials: false
       - name: Resolve configured operation
         id: route
+        if: github.event_name != 'pull_request_target'
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -56,10 +56,18 @@ jobs:
           phase: resolve
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
+      - name: Resolve protected event lifecycle
+        if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
+        uses: $/
+        env:
+          CI_PREVIEW_CLOSED_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          phase: lifecycle-resolve
 
   prepare:
     name: Prepare
     needs: resolve
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -82,6 +90,7 @@ jobs:
   discover:
     name: Discover
     needs: resolve
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -103,6 +112,7 @@ jobs:
   inspect:
     name: Inspect
     needs: resolve
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -252,6 +262,7 @@ jobs:
 
   lifecycle:
     name: Lifecycle
+    needs: resolve
     if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 20

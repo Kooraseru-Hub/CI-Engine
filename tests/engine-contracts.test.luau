@@ -117,7 +117,7 @@ check("manual validation permits a guarded default-branch native launch",
 
 local expected: { [string]: { string } } = {
     resolve = {},
-    lifecycle = {},
+    lifecycle = { "resolve" },
     prepare = { "resolve" },
     discover = { "resolve" },
     inspect = { "resolve" },
@@ -156,7 +156,7 @@ for line in workflow:gmatch("[^\r\n]+") do
             end
             local label = line:match("^    name: (.+)$")
             if label then names[current] = label end
-            if line:match("^    if:") and current ~= "report" and current ~= "cleanup" and current ~= "validate" and current ~= "resolve" and current ~= "lifecycle" then
+            if line:match("^    if:") and current ~= "report" and current ~= "cleanup" and current ~= "validate" and current ~= "lifecycle" and current ~= "prepare" and current ~= "discover" and current ~= "inspect" then
                 error("controller stage is conditionally skipped: " .. current, 0)
             end
         end
@@ -178,7 +178,15 @@ local present = 0
 for _ in found do present += 1 end
 check("no additional controller jobs", present == count)
 check("controller branches after Resolve", #found.prepare == 1
-    and #found.discover == 1 and #found.inspect == 1)
+    and #found.discover == 1 and #found.inspect == 1 and #found.lifecycle == 1)
+local roots = 0
+for identity, dependencies in found do
+    if #dependencies == 0 then
+        check("only Resolve is a graph root", identity == "resolve")
+        roots += 1
+    end
+end
+check("exactly one controller entry point", roots == 1)
 check("controller converges before Execute", #found.authorize == 2
     and #found.execute == 2)
 check("privileged lifecycle has isolated permissions", workflow:find("pull-requests: write", 1, true) ~= nil)
