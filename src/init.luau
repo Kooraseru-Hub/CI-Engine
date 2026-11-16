@@ -37,10 +37,24 @@ local function writeOutput(name: string, value: string): ()
 end
 
 local function main(): ()
+    -- Lifecycle jobs run only on trusted default-branch event code and
+    -- have a separately scoped GitHub permission and protected environment.
+    local phase = Process.env.CI_ENGINE_PHASE or "execute"
+    if phase == "lifecycle" then
+        if Process.env.GITHUB_ACTIONS ~= "true" or Process.env.GITHUB_EVENT_NAME ~= "pull_request_target" then
+            fail("lifecycle requires a trusted pull_request_target event")
+        end
+        local actionPath = Process.env.GITHUB_ACTION_PATH
+        if not actionPath or actionPath == "" then fail("lifecycle requires the engine action path") end
+        local result = Process.run({ "node", actionPath .. "/src/lifecycle/dispatch.cjs" }, {
+            cwd = Process.cwd(), stdio = "inherit", env = Process.env,
+        })
+        if not result.ok then fail("lifecycle component failed (" .. tostring(result.exitcode) .. ")") end
+        return
+    end
     local config = load(Process.env.CI_ENGINE_CONFIG or ".github/config/ci/engine.json")
     local context = Operation.Context(Process.env)
     local route = Operation.Resolve(config, context)
-    local phase = Process.env.CI_ENGINE_PHASE or "execute"
     local expected = Process.env.CI_ENGINE_SELECTED_OPERATION
     if expected and expected ~= "" and expected ~= route.name then
         fail("operation selection changed after the resolve job")

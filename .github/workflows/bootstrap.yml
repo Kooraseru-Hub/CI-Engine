@@ -27,6 +27,7 @@ permissions:
 jobs:
   resolve:
     name: Resolve
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -246,10 +247,34 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
 
+  lifecycle:
+    name: Lifecycle
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    environment: ci-preview-cloudflare
+    steps:
+      - name: Check out trusted default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Dispatch protected lifecycle component
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CI_PREVIEW_CLOSED_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          phase: lifecycle
   report:
     name: Collect
     needs: execute
-    if: ${{ always() }}
+    if: ${{ always() && github.event_name != 'pull_request_target' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
@@ -271,7 +296,7 @@ jobs:
   cleanup:
     name: Cleanup
     needs: report
-    if: ${{ always() }}
+    if: ${{ always() && github.event_name != 'pull_request_target' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
@@ -287,7 +312,7 @@ jobs:
 
   validate:
     name: validate
-    needs: cleanup
+    needs: [cleanup, lifecycle]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -296,6 +321,12 @@ jobs:
       - name: Require completed pipeline
         env:
           CLEANUP_RESULT: ${{ needs.cleanup.result }}
+          LIFECYCLE_RESULT: ${{ needs.lifecycle.result }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          test "$CLEANUP_RESULT" = success
+          if [ "$EVENT_NAME" = pull_request_target ]; then
+            test "$LIFECYCLE_RESULT" = success
+          else
+            test "$CLEANUP_RESULT" = success
+          fi

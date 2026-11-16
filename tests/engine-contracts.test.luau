@@ -117,6 +117,7 @@ check("manual validation permits a guarded default-branch native launch",
 
 local expected: { [string]: { string } } = {
     resolve = {},
+    lifecycle = {},
     prepare = { "resolve" },
     discover = { "resolve" },
     inspect = { "resolve" },
@@ -125,10 +126,10 @@ local expected: { [string]: { string } } = {
     execute = { "prepare", "authorize" },
     report = { "execute" },
     cleanup = { "report" },
-    validate = { "cleanup" },
+    validate = { "cleanup", "lifecycle" },
 }
 local labels: { [string]: string } = {
-    resolve = "Resolve", prepare = "Prepare", discover = "Discover",
+    resolve = "Resolve", lifecycle = "Lifecycle", prepare = "Prepare", discover = "Discover",
     inspect = "Inspect", plan = "Plan", authorize = "Authorize",
     execute = "Execute", report = "Collect", cleanup = "Cleanup",
     validate = "validate",
@@ -155,7 +156,7 @@ for line in workflow:gmatch("[^\r\n]+") do
             end
             local label = line:match("^    name: (.+)$")
             if label then names[current] = label end
-            if line:match("^    if:") and current ~= "report" and current ~= "cleanup" and current ~= "validate" then
+            if line:match("^    if:") and current ~= "report" and current ~= "cleanup" and current ~= "validate" and current ~= "resolve" and current ~= "lifecycle" then
                 error("controller stage is conditionally skipped: " .. current, 0)
             end
         end
@@ -180,5 +181,7 @@ check("controller branches after Resolve", #found.prepare == 1
     and #found.discover == 1 and #found.inspect == 1)
 check("controller converges before Execute", #found.authorize == 2
     and #found.execute == 2)
+check("privileged lifecycle has isolated permissions", workflow:find("pull-requests: write", 1, true) ~= nil)
+check("lifecycle completion is part of required validation", workflow:find("needs.lifecycle.result", 1, true) ~= nil)
 
 print("CI Engine: " .. passed .. " contract and planner tests passed")

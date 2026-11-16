@@ -103,3 +103,17 @@ test('failed lifecycle component fails the whole run', () => {
   const f = fixture({ exit: { status: 42 } });
   assert.throws(() => dispatch(f.options), /failed: 42/);
 });
+
+
+test('reusable workflow contains an isolated privileged lifecycle lane', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const yaml = fs.readFileSync(path.join(__dirname, '../.github/workflows/bootstrap.yml'), 'utf8');
+  assert.match(yaml, /^  lifecycle:\s*$/m);
+  assert.match(yaml, /if: github\.event_name == 'pull_request_target' && github\.event\.action == 'closed'/);
+  assert.match(yaml, /environment: ci-preview-cloudflare/);
+  assert.match(yaml, /pull-requests: write/);
+  assert.match(yaml, /phase: lifecycle/);
+  assert.match(yaml, /needs: \[cleanup, lifecycle\]/);
+  assert.match(yaml, /needs\.lifecycle\.result/);
+});

@@ -10,7 +10,7 @@ inputs:
     required: false
     default: "false"
   phase:
-    description: resolve, execute, native, or generated
+    description: resolve, prepare, discover, inspect, plan, authorize, execute, native, generated, or lifecycle
     required: false
     default: execute
 outputs:
