@@ -1,0 +1,19 @@
+{
+  "provides": [
+    "smoke.lifecycle"
+  ],
+  "requires": [
+    "smoke.git"
+  ],
+  "boundary": "read",
+  "events": [
+    "push",
+    "pull_request",
+    "workflow_dispatch"
+  ],
+  "command": [
+    "node",
+    "--test",
+    "tests/lifecycle.test.cjs"
+  ]
+}
