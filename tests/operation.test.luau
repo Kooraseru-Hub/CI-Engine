@@ -89,4 +89,20 @@ do
         Operation.Resolve(copy, context)
     end))
 end
+do
+    local alternate = table.clone(cfg)
+    alternate.triggers = table.clone(cfg.triggers)
+    alternate.triggers.push = "review"
+    alternate.triggers.default_push = "publish"
+    local sameBranch = { event = "push", ref = "refs/heads/main", defaultBranch = "main",
+        requested = "", confirmPublish = false }
+    local featureBranch = table.clone(sameBranch)
+    featureBranch.ref = "refs/heads/feature/example"
+    check("default-branch push selects trusted publication",
+        Operation.Resolve(alternate, sameBranch).name == "publish")
+    check("feature-branch push stays read-only",
+        Operation.Resolve(alternate, featureBranch).name == "review")
+    check("unconfigured default-branch override preserves prior behavior",
+        Operation.Resolve(cfg, sameBranch).name == "review")
+end
 print("CI Engine: " .. passed .. " operation routing tests passed")

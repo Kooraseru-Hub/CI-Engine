@@ -37,7 +37,13 @@ function Operation.Resolve(config: any, context: {
     if type(config.triggers) ~= "table" or type(config.operations) ~= "table" then
         fail("missing triggers or operations")
     end
-    local name = if context.requested ~= "" then context.requested else config.triggers[context.event]
+    -- A trusted default-branch push may select a different operation without
+    -- changing how feature-branch pushes are validated.
+    local defaultPush = context.event == "push" and context.defaultBranch ~= ""
+        and context.ref == "refs/heads/" .. context.defaultBranch
+    local name = if context.requested ~= "" then context.requested
+        elseif defaultPush and config.triggers.default_push ~= nil then config.triggers.default_push
+        else config.triggers[context.event]
     if context.requested ~= "" and context.event ~= "workflow_dispatch" then
         fail("operation override requires workflow_dispatch")
     end
