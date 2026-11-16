@@ -28,7 +28,7 @@ function fixture(change = {}) {
   const component = {
     boundary: 'privileged', events: ['pull_request_target'],
     command: ['node', 'ci/components/preview/retire.cjs'],
-    credentials: ['GH_TOKEN', 'CLOUDFLARE_API_TOKEN'],
+    credentials: ['gh_token', 'cloudflare_api_token'],
   };
   const files = {
     '/tmp/close.json': JSON.stringify(event),
