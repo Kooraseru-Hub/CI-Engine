@@ -95,7 +95,7 @@ function dispatch(options = {}) {
   }
   if (!Array.isArray(component.credentials) ||
       !component.credentials.every(name => typeof name === 'string' &&
-        /^[A-Z][A-Z0-9_]*$/.test(name) && !!env[name])) {
+        /^[a-z][a-z0-9_]*$/.test(name) && !!env[name.toUpperCase()])) {
     fail('lifecycle component credentials unavailable');
   }
 
