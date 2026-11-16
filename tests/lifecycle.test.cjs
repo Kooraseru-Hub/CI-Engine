@@ -113,6 +113,7 @@ test('reusable workflow contains an isolated privileged lifecycle lane', () => {
   assert.match(yaml, /if: github\.event_name == 'pull_request_target' && github\.event\.action == 'closed'/);
   assert.match(yaml, /environment: ci-preview-cloudflare/);
   assert.match(yaml, /pull-requests: write/);
+  assert.match(yaml, /cloudflare_api_token/);
   assert.match(yaml, /phase: lifecycle/);
   assert.match(yaml, /needs: \[cleanup, lifecycle\]/);
   assert.match(yaml, /needs\.lifecycle\.result/);

@@ -20,6 +20,9 @@ on:
       bootstrap_token:
         description: Optional scoped bootstrap token for trusted publication
         required: false
+      cloudflare_api_token:
+        description: Optional protected Cloudflare preview publication secret
+        required: false
 
 permissions:
   contents: read
@@ -266,7 +269,7 @@ jobs:
         uses: $/
         env:
           GH_TOKEN: ${{ github.token }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.cloudflare_api_token }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CI_PREVIEW_CLOSED_NUMBER: ${{ github.event.pull_request.number }}
         with:
