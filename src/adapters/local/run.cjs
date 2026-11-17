@@ -131,11 +131,10 @@ async function main(args = process.argv.slice(2)) {
 		execFileSync("git", ["add", "-A"], { cwd: worktree, windowsHide: true, stdio: "pipe" });
 		const event = stagedEventArguments(args, selected)[0];
 		const entry = { push: "push.yml", pull_request: "pull.yml", workflow_dispatch: "manual.yml", repository_dispatch: "remote.yml" }[event];
-		prepareStagedWorkflow(path.join(worktree, ".github/workflows/bootstrap.yml"), packageRoot);
-		execFileSync("git", ["add", "-A"], { cwd: worktree, windowsHide: true, stdio: "pipe" });
+		prepareStagedWorkflow(path.join(worktree, ".github/workflows/bootstrap.yml"), packageRoot, entry);
 		const config = JSON.parse(fs.readFileSync(path.join(root, "config/ci/operations.json"), "utf8"));
 		const route = config.operations[selected.operation];
-		const authored = ["--workflows", ".github/workflows/" + entry];
+		const authored = ["--workflows", ".github/workflows/_act-entry.yml"];
 		if (route.mode === "readonly") {
 			failureStage = "validation";
 			record.stages.start = "not required";
