@@ -1,0 +1,12 @@
+# Substitute the same reviewed engine commit SHA.
+name: Pull Request
+on: pull_request
+permissions: {}
+jobs:
+  ci:
+    name: CI Engine
+    uses: Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml@PIN_ENGINE_COMMIT_SHA
+    permissions:
+      contents: read
+    with:
+      operation: smoke

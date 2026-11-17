@@ -93,6 +93,7 @@ do
     local c = table.clone(context)
     c.requested = "review"
     check("caller may explicitly choose a permitted PR operation", Operation.Resolve(cfg, c).name == "review")
+    check("explicit callers do not require a trigger map", Operation.Resolve({ version = 1, operations = cfg.operations }, c).name == "review")
     local operation = {
         mode = "protected", events = { "repository_dispatch", "pull_request_target" },
         actions = { "retire", "closed" }, environment = "maintenance", components = { "maintenance/*" },

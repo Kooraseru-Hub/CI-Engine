@@ -7,7 +7,7 @@ local Glob = require("@engine/planning/glob")
 local Outcome = require("@engine/execution/outcome")
 local Json = require("@engine/configuration/json")
 
-local ReadOnly = {}
+local Components = {}
 
 local function fail(message: string): never
     error("CI Engine: " .. message, 0)
@@ -45,9 +45,12 @@ local function mask(value: string): ()
     print("::add-mask::" .. escaped)
 end
 
-function ReadOnly.Run(ordered: { string }, components: { [string]: any }, protected: boolean?): ()
+function Components.Run(ordered: { string }, components: { [string]: any }, protected: boolean?): ()
     local secrets = if protected then bindings(Process.env.CI_COMPONENT_CREDENTIALS) else {}
     local variables = if protected then bindings(Process.env.CI_COMPONENT_VARIABLES) else {}
+    if protected and Process.env.CI_COMPONENT_GITHUB_TOKEN and Process.env.CI_COMPONENT_GITHUB_TOKEN ~= "" then
+        secrets.gh_token = Process.env.CI_COMPONENT_GITHUB_TOKEN
+    end
     for _, value in secrets do mask(value) end
     for _, identity in ordered do
         local component = components[identity]
@@ -69,6 +72,7 @@ function ReadOnly.Run(ordered: { string }, components: { [string]: any }, protec
         environment.CI_CREDENTIAL_BOOTSTRAP_TOKEN = ""
         environment.CI_COMPONENT_CREDENTIALS = ""
         environment.CI_COMPONENT_VARIABLES = ""
+        environment.CI_COMPONENT_GITHUB_TOKEN = ""
         if protected and component.boundary == "privileged" then
             for _, name in component.credentials do
                 local value = secrets[name] or variables[name]
@@ -99,4 +103,4 @@ function ReadOnly.Run(ordered: { string }, components: { [string]: any }, protec
     end
 end
 
-return ReadOnly
+return Components

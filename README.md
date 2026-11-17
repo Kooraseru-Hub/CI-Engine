@@ -8,7 +8,7 @@ A reusable, language-independent CI coordinator. Repositories own their operatio
 - **action.yml** – an independently usable composite action supporting resolve, prepare, discover, inspect, plan, authorize, execute and generated phases
 - **src/** – the generic Lute runtime, without requiring a Node controller or any particular project language
 
-The consumer's stable callable CI facade pins Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml to an exact commit SHA. Separate event workflows call that facade with an explicit operation. The facade itself has only workflow_call.
+The consumer's event workflows pin Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml directly to the same exact commit SHA. No local facade is required. Group event entry points by consumer (push, pull request, manual, remote) and pass explicit operations and narrowly scoped permissions.
 
 The consumer declares operations (legacy trigger defaults remain available to direct runtime callers) in .github/config/ci/engine.json. Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
 
@@ -41,11 +41,11 @@ Protected event work is an ordinary operation with mode `protected`, an explicit
 
 The engine permits protected work only from a hosted default-branch checkout; ordinary pull_request and local act runs cannot execute it. Entry points own event filters and payload-specific policy (for example, same-repository PR closures). Components must validate any untrusted event payload before acting.
 
-The protected Execute step receives an explicitly provided JSON secret `component_credentials` (or environment secret `CI_COMPONENT_CREDENTIALS`) and optional environment variable `CI_COMPONENT_VARIABLES`. Keys are lowercase credential aliases; only a privileged component's declared aliases are passed as uppercase environment variables, and secret values are masked. Use a separately scoped token for write access rather than granting all Execute jobs write permissions. No provider-specific credentials or bulk secrets context is collected. Configure environment protections in the consumer.
+The protected Execute step receives an explicitly provided JSON secret `component_credentials` (or environment secret `CI_COMPONENT_CREDENTIALS`) and optional `component_variables` input (or environment variable `CI_COMPONENT_VARIABLES`). Keys are lowercase aliases; only a privileged component's declared bindings are passed as uppercase environment variables, and secret values are masked. The reserved `gh_token` alias uses the calling job's GitHub token, permitting bot-owned comment operations without exposing it to read-only component subprocesses. Configure environment protections in the consumer. No provider-specific credentials or bulk secrets context is collected.
 
 ## Credentials and trust
 
-Untrusted pull requests cannot request a generated operation, and never enter the privileged job. Read-only jobs have contents: read and no publisher credentials. The trusted job alone has id-token: write, an explicit protected GitHub environment, and optional app_private_key / bootstrap_token secret inputs alongside vars.CI_APP_ID.
+Untrusted pull requests cannot request a generated operation, and never enter the privileged job. Read-only jobs have contents: read and no publisher credentials. The caller sets the Execute permission ceiling; protected invocations select an explicit protected GitHub environment, and optional app_private_key / bootstrap_token secret inputs alongside vars.CI_APP_ID.
 
 Manual publication additionally requires explicit confirmation. Real package or extension registry OIDC trust must be registered at the external publisher; the engine cannot bypass GitHub's environment protections or manufacture that trust.
 
@@ -66,9 +66,9 @@ GitHub supports action self-references such as `uses: $/`, but some current vers
 
 ## Credential boundary for a universal graph
 
-GitHub permissions are job-scoped. The single `Execute Pipeline` job has `id-token: write` so it can run a trusted generated adapter when authorized; read-only components do **not** receive the OIDC token vending variables or bootstrap credentials in their subprocess environments. The job uses the separate `ci-readonly` environment for unprivileged execution and the selected protected environment for generated operations. External OIDC trusted-publisher registrations must trust only the protected publishing environment, never `ci-readonly`.
+GitHub permissions are job-scoped. The single `Execute` job inherits the caller's explicitly declared permissions, allowing trusted callers to request `id-token: write` or other capabilities while PR review callers remain read-only; read-only components do **not** receive the OIDC token vending variables or bootstrap credentials in their subprocess environments. The job uses the separate `ci-readonly` environment for unprivileged execution and the selected protected environment for generated operations. External OIDC trusted-publisher registrations must trust only the protected publishing environment, never `ci-readonly`.
 
-If strict job-level least privilege is required, the alternative is to split the read-only and privileged lanes into distinct GitHub jobs. That would reintroduce the skipped execution branch in the graph; it is a deliberate design tradeoff and must be revisited when changing trust policies.
+The caller must not grant write permissions or OIDC to untrusted invocations. Use separate caller jobs if one event file groups events with different trust boundaries. The engine itself retains a single Execute job.
 
 
 ## Native source-push validation

@@ -34,10 +34,9 @@ function Operation.Resolve(config: any, context: {
     if type(config) ~= "table" or config.version ~= 1 then
         fail("unsupported engine configuration version")
     end
-    if type(config.triggers) ~= "table" or type(config.operations) ~= "table" then
-        fail("missing triggers or operations")
-    end
-    local name = if context.requested ~= "" then context.requested else config.triggers[context.event]
+    if type(config.operations) ~= "table" then fail("missing operations") end
+    local name = if context.requested ~= "" then context.requested
+        elseif type(config.triggers) == "table" then config.triggers[context.event] else nil
     if type(name) ~= "string" or not name:match("^[a-z][a-z0-9-]*$") then
         fail("no configured operation for event " .. context.event)
     end

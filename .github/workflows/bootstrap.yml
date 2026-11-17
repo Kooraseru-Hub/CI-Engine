@@ -7,6 +7,11 @@ on:
         description: Consumer-defined operation selected by the calling workflow
         type: string
         required: true
+      component_variables:
+        description: Explicit JSON object of non-secret component bindings
+        type: string
+        required: false
+        default: "{}"
       publish:
         description: Explicit manual publication confirmation
         type: boolean
@@ -23,9 +28,8 @@ on:
         description: Explicit JSON object of credentials for protected component execution
         required: false
 
-permissions:
-  contents: read
-
+# Each caller defines the maximum permissions; planning jobs downgrade to read-only.
+# Execute inherits the caller ceiling so protected and untrusted invocations differ.
 env:
   CI_EVENT_ACTION: ${{ github.event.action || '' }}
 
@@ -175,10 +179,6 @@ jobs:
     needs: [prepare, authorize]
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
     environment:
       name: ${{ (needs.authorize.outputs.mode == 'protected' || needs.authorize.outputs.mode == 'generated') && needs.authorize.outputs.environment || (needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && 'ci-bootstrap' || 'ci-readonly' }}
     steps:
@@ -233,7 +233,8 @@ jobs:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
           CI_COMPONENT_CREDENTIALS: ${{ secrets.CI_COMPONENT_CREDENTIALS || secrets.component_credentials }}
-          CI_COMPONENT_VARIABLES: ${{ vars.CI_COMPONENT_VARIABLES }}
+          CI_COMPONENT_VARIABLES: ${{ vars.CI_COMPONENT_VARIABLES || inputs.component_variables }}
+          CI_COMPONENT_GITHUB_TOKEN: ${{ github.token }}
         with:
           phase: protected
           operation: ${{ inputs.operation }}

@@ -191,6 +191,9 @@ check("controller converges before Execute", #found.authorize == 2
 check("protected operations execute within ordinary Execute", workflow:find("phase: protected", 1, true) ~= nil)
 check("engine has no provider-specific dispatch", workflow:find("cloudflare", 1, true) == nil)
 check("protected components have explicit scoped bindings", workflow:find("CI_COMPONENT_CREDENTIALS", 1, true) ~= nil)
+local execution = workflow:match("\n  execute:\n(.-)\n  report:") or ""
+check("Execute inherits the explicit caller permission ceiling", execution:find("\n    permissions:", 1, true) == nil)
+check("only protected component execution receives caller GitHub token", execution:find("CI_COMPONENT_GITHUB_TOKEN", 1, true) ~= nil)
 local protectedPlan = Graph.Plan({ ["test/publish"] = privileged }, { "*" }, "repository_dispatch", "protected")
 check("protected component uses normal dependency planner", #protectedPlan.ordered == 1)
 

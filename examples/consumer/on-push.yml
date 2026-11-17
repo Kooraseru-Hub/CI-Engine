@@ -1,11 +1,12 @@
+# Substitute the reviewed engine commit SHA.
 name: Push
 on: push
+permissions: {}
 jobs:
   ci:
-    uses: ./.github/workflows/ci.yml
+    name: CI Engine
+    uses: Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml@PIN_ENGINE_COMMIT_SHA
     permissions:
       contents: read
-      actions: read
-      id-token: write
     with:
       operation: smoke

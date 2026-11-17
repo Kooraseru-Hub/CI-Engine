@@ -6,7 +6,7 @@ local Json = require("@engine/configuration/json")
 local Component = require("@engine/contracts/component")
 local Discovery = require("@engine/discovery/components")
 local Graph = require("@engine/planning/graph")
-local ReadOnly = require("@engine/execution/readonly")
+local Components = require("@engine/execution/components")
 local Operation = require("@engine/configuration/operation")
 local Generated = require("@engine/execution/generated")
 
@@ -169,7 +169,7 @@ local function main(): ()
     local components = Discovery.Load(root)
     local plan = Graph.Plan(components, route.operation.components, context.event, route.mode)
     print("CI Engine: " .. route.name .. " (" .. context.event .. "), " .. #plan.ordered .. " component(s)")
-    ReadOnly.Run(plan.ordered, components, phase == "protected")
+    Components.Run(plan.ordered, components, phase == "protected")
     print("CI Engine: operation completed successfully")
 end
 
