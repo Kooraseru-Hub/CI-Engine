@@ -2,7 +2,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const PIN = /^\s*uses:\s+(?<repository>[\w.-]+\/[\w.-]+)\/\.github\/workflows\/(?<workflow>[\w.-]+\.ya?ml)@(?<sha>[a-f0-9]{40})\s*$/gm;
+const PIN = /^\s*uses:\s+(?<repository>[\w.-]+\/[\w.-]+)\/\.github\/workflows\/(?<workflow>[\w.-]+\.ya?ml)@(?<sha>[a-f0-9]{40})(?:[ \t]+#[^\r\n]*)?[ \t]*$/gm;
 function prepareStagedWorkflow(file, packageRoot) {
   const source = fs.readFileSync(file, "utf8");
   const matches = [...source.matchAll(PIN)];

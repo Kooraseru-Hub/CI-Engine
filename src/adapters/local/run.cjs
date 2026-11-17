@@ -113,7 +113,7 @@ async function main(args = process.argv.slice(2)) {
 	}
 	const transport = path.join(runRoot, "transport");
 	const port = execFileSync(process.execPath, ["-e", "const s=require('net').createServer();s.listen(0,()=>{console.log(s.address().port);s.close()})"], { encoding: "utf8", windowsHide: true }).trim();
-	const readToken = selected.operation === "readiness" && args.some((arg, index) => arg.startsWith("--secret=GITHUB_TOKEN=") || ((arg === "--secret" || arg === "-s") && (args[index + 1] === "GITHUB_TOKEN" || args[index + 1]?.startsWith("GITHUB_TOKEN="))));
+	const readToken = false && args.some((arg, index) => arg.startsWith("--secret=GITHUB_TOKEN=") || ((arg === "--secret" || arg === "-s") && (args[index + 1] === "GITHUB_TOKEN" || args[index + 1]?.startsWith("GITHUB_TOKEN="))));
 	const runtimeArgs = [...(readToken ? ["--secret-file", ""] : ["--secret-file", "", "--secret", "GITHUB_TOKEN="]),"--env", "ACT=true", "--env", "CI_WORKSPACE_DIGEST=" + workspaceDigest,"--artifact-server-path", transport, "--artifact-server-port", port, "--env", "CI_LOCAL_RUN_ID=" + runId];
 	let worktree, failureStage = "start";
 	publish();

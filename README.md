@@ -10,7 +10,7 @@ A reusable, language-independent CI coordinator. Repositories own their operatio
 
 Consumers can pin Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml through one local workflow_call-only bootstrap reference, or call the external workflow directly. A local dependency provider may derive its exact revision from that reference. Group event entry points by consumer (push, pull request, manual, remote) and pass explicit operations and narrowly scoped permissions.
 
-The consumer declares operations (legacy trigger defaults remain available to direct runtime callers) in config/ci/engine.json (legacy .github/config/ci/engine.json is supported). Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
+The consumer declares operations (legacy trigger defaults remain available to direct runtime callers) in config/ci/operations.json (legacy engine.json paths are supported). Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
 
 Generated operations invoke a **repository-owned execution adapter** only after the engine's separate trusted job passes its event, default-branch and protected-environment checks. Such an adapter can compile GitHub-native workflow DAGs, dispatch them, verify completion, publish, manage generated branches, and clean up. The engine does not hardcode toolchains, publishers, phases, or repository names. A nonzero adapter exit fails the required final result.
 
@@ -78,3 +78,7 @@ A repository can declare an optional `native.command` in a read-only operation (
 The native launch step receives an explicit short-lived repository-scoped GitHub App token or a separately configured `bootstrap_token`; the default `GITHUB_TOKEN` cannot trigger push workflows when it creates a branch. The source-push Execute stage runs under the configured `ci-bootstrap` environment, while all untrusted read-only runs remain under `ci-readonly`. Repository maintainers must scope environment protection and the GitHub App's Contents/Workflows permissions correctly.
 
 The native adapter is supplied by the consuming repository and must fail when its generated run fails. The engine does not automatically publish packages, pages, releases or branches; those are separate, explicitly authorized operations.
+
+## Managed local package
+
+Install the exact workflow commit through the consumer's dependency provider. The CLI stages the installed package and the consumer's authored workflows in an isolated checkout; it does not fetch its own source. `node cli.cjs run validation` selects manual validation. `node cli.cjs sync-inputs` regenerates the manual operation choices from configuration; `--check` verifies that they agree. Local runs never authorize publication or protected operations. Some hosted capabilities, including native Windows runners, still require real GitHub verification.

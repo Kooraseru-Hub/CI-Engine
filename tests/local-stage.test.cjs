@@ -1,0 +1,31 @@
+"use strict";
+const test = require("node:test"), assert = require("node:assert/strict");
+const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
+const { prepareStagedWorkflow } = require("../src/adapters/local/stage.cjs");
+test("local staging uses the installed revision without changing the original package", t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "engine-stage-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const workspace = path.join(root, "workspace"), packageRoot = path.join(root, "pkg");
+  fs.mkdirSync(path.join(workspace, ".github/workflows"), { recursive: true });
+  fs.mkdirSync(path.join(packageRoot, ".github/workflows"), { recursive: true });
+  const revision = { repository: "example/engine", workflow: "bootstrap.yml", sha: "a".repeat(40) };
+  fs.writeFileSync(path.join(packageRoot, ".dependency-revision.json"), JSON.stringify(revision));
+  const engine = "jobs:\n  run:\n    steps:\n      - uses: $/\n      - uses: actions/upload-artifact@v7\n";
+  fs.writeFileSync(path.join(packageRoot, ".github/workflows/bootstrap.yml"), engine);
+  const file = path.join(workspace, ".github/workflows/bootstrap.yml");
+  fs.writeFileSync(file, "jobs:\n  engine:\n    uses: example/engine/.github/workflows/bootstrap.yml@" + revision.sha + "\n");
+  assert.equal(prepareStagedWorkflow(file, packageRoot), true);
+  assert.match(fs.readFileSync(file, "utf8"), /uses: \.\/\.github\/workflows\/_act-ci-engine.yml/);
+  const staged = fs.readFileSync(path.join(workspace, ".github/workflows/_act-ci-engine.yml"), "utf8");
+  assert.match(staged, /uses: \.\/\.ci-engine-act/);
+  assert.match(staged, /actions\/upload-artifact@v4/);
+  assert.equal(fs.readFileSync(path.join(packageRoot, ".github/workflows/bootstrap.yml"), "utf8"), engine);
+});
+test("mismatched installed engine is refused before staging", t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "engine-stage-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(root, ".dependency-revision.json"), JSON.stringify({repository:"example/engine", workflow:"bootstrap.yml", sha:"b".repeat(40)}));
+  const file = path.join(root, "bootstrap.yml");
+  fs.writeFileSync(file, "    uses: example/engine/.github/workflows/bootstrap.yml@" + "a".repeat(40) + "\n");
+  assert.throws(() => prepareStagedWorkflow(file, root), /revision does not match/);
+});

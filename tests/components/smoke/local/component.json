@@ -1,0 +1,13 @@
+{
+  "provides": [
+    "smoke.local"
+  ],
+  "requires": [],
+  "boundary": "read",
+  "command": [
+    "node",
+    "--test",
+    "tests/local-stage.test.cjs",
+    "tests/local-artifacts.test.cjs"
+  ]
+}
