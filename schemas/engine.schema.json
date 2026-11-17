@@ -38,7 +38,8 @@
             "type": "string",
             "enum": [
               "readonly",
-              "generated"
+              "generated",
+              "protected"
             ]
           },
           "events": {
@@ -119,6 +120,15 @@
               }
             },
             "additionalProperties": false
+          },
+          "actions": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "additionalProperties": false,
@@ -153,6 +163,35 @@
                 "publication",
                 "execution"
               ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "protected"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "components",
+                "environment"
+              ],
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "execution"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "native"
+                    ]
+                  }
+                ]
+              }
             }
           }
         ]

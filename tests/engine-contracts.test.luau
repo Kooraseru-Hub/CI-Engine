@@ -117,7 +117,6 @@ check("manual validation permits a guarded default-branch native launch",
 
 local expected: { [string]: { string } } = {
     resolve = {},
-    lifecycle = { "resolve" },
     prepare = { "resolve" },
     discover = { "resolve" },
     inspect = { "resolve" },
@@ -126,10 +125,10 @@ local expected: { [string]: { string } } = {
     execute = { "prepare", "authorize" },
     report = { "execute" },
     cleanup = { "report" },
-    validate = { "cleanup", "lifecycle" },
+    validate = { "cleanup" },
 }
 local labels: { [string]: string } = {
-    resolve = "Resolve", lifecycle = "Lifecycle", prepare = "Prepare", discover = "Discover",
+    resolve = "Resolve", prepare = "Prepare", discover = "Discover",
     inspect = "Inspect", plan = "Plan", authorize = "Authorize",
     execute = "Execute", report = "Collect", cleanup = "Cleanup",
     validate = "validate",
@@ -156,7 +155,7 @@ for line in workflow:gmatch("[^\r\n]+") do
             end
             local label = line:match("^    name: (.+)$")
             if label then names[current] = label end
-            if line:match("^    if:") and current ~= "report" and current ~= "cleanup" and current ~= "validate" and current ~= "lifecycle" and current ~= "prepare" and current ~= "discover" and current ~= "inspect" then
+            if line:match("^    if:") and current ~= "report" and current ~= "cleanup" and current ~= "validate" then
                 error("controller stage is conditionally skipped: " .. current, 0)
             end
         end
@@ -178,7 +177,7 @@ local present = 0
 for _ in found do present += 1 end
 check("no additional controller jobs", present == count)
 check("controller branches after Resolve", #found.prepare == 1
-    and #found.discover == 1 and #found.inspect == 1 and #found.lifecycle == 1)
+    and #found.discover == 1 and #found.inspect == 1)
 local roots = 0
 for identity, dependencies in found do
     if #dependencies == 0 then
@@ -189,7 +188,10 @@ end
 check("exactly one controller entry point", roots == 1)
 check("controller converges before Execute", #found.authorize == 2
     and #found.execute == 2)
-check("privileged lifecycle has isolated permissions", workflow:find("pull-requests: write", 1, true) ~= nil)
-check("lifecycle completion is part of required validation", workflow:find("needs.lifecycle.result", 1, true) ~= nil)
+check("protected operations execute within ordinary Execute", workflow:find("phase: protected", 1, true) ~= nil)
+check("engine has no provider-specific dispatch", workflow:find("cloudflare", 1, true) == nil)
+check("protected components have explicit scoped bindings", workflow:find("CI_COMPONENT_CREDENTIALS", 1, true) ~= nil)
+local protectedPlan = Graph.Plan({ ["test/publish"] = privileged }, { "*" }, "repository_dispatch", "protected")
+check("protected component uses normal dependency planner", #protectedPlan.ordered == 1)
 
 print("CI Engine: " .. passed .. " contract and planner tests passed")

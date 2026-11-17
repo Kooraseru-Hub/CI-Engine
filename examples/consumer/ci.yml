@@ -1,19 +1,33 @@
+# The consumer's stable callable facade. Event entry points call this file.
 name: CI
-
 on:
-  push:
-  pull_request:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       operation:
         type: string
+        required: true
+      publish:
+        type: boolean
+        default: false
+    secrets:
+      component_credentials:
         required: false
-
-permissions:
-  contents: read
-
+      app_private_key:
+        required: false
+      bootstrap_token:
+        required: false
 jobs:
-  bootstrap:
-    uses: Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml@development/engine-extraction
+  ci:
+    name: CI Engine
+    uses: Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml@PIN_ENGINE_COMMIT_SHA
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     with:
-      operation: ${{ inputs.operation || '' }}
+      operation: ${{ inputs.operation }}
+      publish: ${{ inputs.publish }}
+    secrets:
+      component_credentials: ${{ secrets.component_credentials }}
+      app_private_key: ${{ secrets.app_private_key }}
+      bootstrap_token: ${{ secrets.bootstrap_token }}

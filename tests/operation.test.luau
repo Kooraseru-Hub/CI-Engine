@@ -89,4 +89,39 @@ do
         Operation.Resolve(copy, context)
     end))
 end
+do
+    local c = table.clone(context)
+    c.requested = "review"
+    check("caller may explicitly choose a permitted PR operation", Operation.Resolve(cfg, c).name == "review")
+    local operation = {
+        mode = "protected", events = { "repository_dispatch", "pull_request_target" },
+        actions = { "retire", "closed" }, environment = "maintenance", components = { "maintenance/*" },
+    }
+    local copy = table.clone(cfg)
+    local operations = table.clone(cfg.operations)
+    operations.maintenance = operation
+    copy.operations = operations
+    local remote = { event = "repository_dispatch", action = "retire", ref = "refs/heads/main",
+        defaultBranch = "main", requested = "maintenance", confirmPublish = false }
+    check("remote caller selects a protected operation", Operation.Resolve(copy, remote).mode == "protected")
+    local close = table.clone(remote)
+    close.event = "pull_request_target"
+    close.action = "closed"
+    check("protected close uses the ordinary operation resolver", Operation.Resolve(copy, close).name == "maintenance")
+    rejects("unknown event action", function()
+        local invalid = table.clone(remote)
+        invalid.action = "unknown"
+        Operation.Resolve(copy, invalid)
+    end)
+    rejects("protected operation from non-default branch", function()
+        local invalid = table.clone(remote)
+        invalid.ref = "refs/heads/topic"
+        Operation.Resolve(copy, invalid)
+    end)
+    rejects("protected operation from an untrusted PR", function()
+        local invalid = table.clone(remote)
+        invalid.event = "pull_request"
+        Operation.Resolve(copy, invalid)
+    end)
+end
 print("CI Engine: " .. passed .. " operation routing tests passed")

@@ -8,9 +8,9 @@ A reusable, language-independent CI coordinator. Repositories own their operatio
 - **action.yml** – an independently usable composite action supporting resolve, prepare, discover, inspect, plan, authorize, execute and generated phases
 - **src/** – the generic Lute runtime, without requiring a Node controller or any particular project language
 
-The consumer's only permanent CI workflow calls Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml at an exact full commit SHA.
+The consumer's stable callable CI facade pins Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml to an exact commit SHA. Separate event workflows call that facade with an explicit operation. The facade itself has only workflow_call.
 
-The consumer declares triggers and operations in .github/config/ci/engine.json. Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
+The consumer declares operations (legacy trigger defaults remain available to direct runtime callers) in .github/config/ci/engine.json. Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
 
 Generated operations invoke a **repository-owned execution adapter** only after the engine's separate trusted job passes its event, default-branch and protected-environment checks. Such an adapter can compile GitHub-native workflow DAGs, dispatch them, verify completion, publish, manage generated branches, and clean up. The engine does not hardcode toolchains, publishers, phases, or repository names. A nonzero adapter exit fails the required final result.
 
@@ -31,9 +31,17 @@ flowchart LR
     K --> V["validate"]
 ```
 
-All jobs have short labels and run on successful operations: read-only versus generated execution is a choice *inside* Execute, not two mutually skipped jobs. Inspect validates the execution boundary independently of component discovery. Prepare verifies the checked-out workspace; it **does not** install tools into Execute's separate runner. Consumer dependency installation remains component-owned until an explicit cache/artifact transport is needed. The engine does not automatically transfer filesystem state between jobs.
+All jobs have short labels and run on successful operations: read-only, protected, or generated execution is a choice *inside* Execute, not two mutually skipped jobs. Inspect validates the execution boundary independently of component discovery. Prepare verifies the checked-out workspace; it **does not** install tools into Execute's separate runner. Consumer dependency installation remains component-owned until an explicit cache/artifact transport is needed. The engine does not automatically transfer filesystem state between jobs.
 
 GitHub cannot insert new native jobs into an active workflow run. A project-owned generated pipeline must use a separate dispatched workflow or supported external backend.
+
+## Protected components
+
+Protected event work is an ordinary operation with mode `protected`, an explicit event allowlist, optional `actions`, a protected environment, and component selectors. The normal Resolve, Prepare, Discover, Inspect, Plan, Authorize, Execute, Collect, Cleanup and validate graph applies. There is no event-specific lifecycle job or publisher in the engine.
+
+The engine permits protected work only from a hosted default-branch checkout; ordinary pull_request and local act runs cannot execute it. Entry points own event filters and payload-specific policy (for example, same-repository PR closures). Components must validate any untrusted event payload before acting.
+
+The protected Execute step receives an explicitly provided JSON secret `component_credentials` (or environment secret `CI_COMPONENT_CREDENTIALS`) and optional environment variable `CI_COMPONENT_VARIABLES`. Keys are lowercase credential aliases; only a privileged component's declared aliases are passed as uppercase environment variables, and secret values are masked. Use a separately scoped token for write access rather than granting all Execute jobs write permissions. No provider-specific credentials or bulk secrets context is collected. Configure environment protections in the consumer.
 
 ## Credentials and trust
 

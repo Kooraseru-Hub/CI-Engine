@@ -1,11 +1,11 @@
 --!strict
--- Adapted from Template PR #43's executor: only the unprivileged
--- backend lives here. A privileged backend must independently authorize work.
+-- Execute validated component plans with scoped credential bindings.
 
 local Fs = require("@std/fs")
 local Process = require("@lute/process")
 local Glob = require("@engine/planning/glob")
 local Outcome = require("@engine/execution/outcome")
+local Json = require("@engine/configuration/json")
 
 local ReadOnly = {}
 
@@ -25,10 +25,33 @@ local function missingOutputs(outputs: { string }): { string }
     return missing
 end
 
-function ReadOnly.Run(ordered: { string }, components: { [string]: any }): ()
+local function bindings(raw: string?): { [string]: string }
+    if not raw or raw == "" then return {} end
+    local ok, decoded = pcall(Json.decode, raw)
+    if not ok or type(decoded) ~= "table" then fail("invalid component binding object") end
+    local result: { [string]: string } = {}
+    for name, value in decoded do
+        if type(name) ~= "string" or not name:match("^[a-z][a-z0-9_]*$")
+            or type(value) ~= "string" or value == "" or value:find("[%z]") then
+            fail("invalid component binding")
+        end
+        result[name] = value
+    end
+    return result
+end
+
+local function mask(value: string): ()
+    local escaped = value:gsub("%%", "%%25"):gsub("\r", "%%0D"):gsub("\n", "%%0A")
+    print("::add-mask::" .. escaped)
+end
+
+function ReadOnly.Run(ordered: { string }, components: { [string]: any }, protected: boolean?): ()
+    local secrets = if protected then bindings(Process.env.CI_COMPONENT_CREDENTIALS) else {}
+    local variables = if protected then bindings(Process.env.CI_COMPONENT_VARIABLES) else {}
+    for _, value in secrets do mask(value) end
     for _, identity in ordered do
         local component = components[identity]
-        if component.boundary ~= "read" or #component.credentials > 0 then
+        if not protected and (component.boundary ~= "read" or #component.credentials > 0) then
             fail("privileged work is unavailable in read-only executor: " .. identity)
         end
         local command = component.command
@@ -44,6 +67,15 @@ function ReadOnly.Run(ordered: { string }, components: { [string]: any }): ()
         environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN = ""
         environment.CI_CREDENTIAL_APP_PRIVATE_KEY = ""
         environment.CI_CREDENTIAL_BOOTSTRAP_TOKEN = ""
+        environment.CI_COMPONENT_CREDENTIALS = ""
+        environment.CI_COMPONENT_VARIABLES = ""
+        if protected and component.boundary == "privileged" then
+            for _, name in component.credentials do
+                local value = secrets[name] or variables[name]
+                if not value then fail(identity .. ": missing credential " .. name) end
+                environment[string.upper(name)] = value
+            end
+        end
         environment.CI_COMPONENT = identity
         print("::group::" .. identity)
         local ok, result = pcall(Process.run, command, {

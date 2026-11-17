@@ -2,7 +2,7 @@ name: CI Engine
 description: Resolve or execute a project-defined CI operation
 inputs:
   operation:
-    description: Optional operation override for workflow_dispatch
+    description: Consumer-defined operation selected by the caller
     required: false
     default: ""
   publish:
@@ -10,7 +10,7 @@ inputs:
     required: false
     default: "false"
   phase:
-    description: resolve, prepare, discover, inspect, plan, authorize, execute, native, generated, or lifecycle
+    description: resolve, prepare, discover, inspect, plan, authorize, execute, native, generated, or protected
     required: false
     default: execute
 outputs:

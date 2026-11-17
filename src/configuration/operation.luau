@@ -29,7 +29,7 @@ local function list(value: any, where: string): { string }
 end
 
 function Operation.Resolve(config: any, context: {
-    event: string, ref: string, defaultBranch: string, requested: string, confirmPublish: boolean,
+    event: string, ref: string, defaultBranch: string, requested: string, confirmPublish: boolean, action: string?,
 }): any
     if type(config) ~= "table" or config.version ~= 1 then
         fail("unsupported engine configuration version")
@@ -38,9 +38,6 @@ function Operation.Resolve(config: any, context: {
         fail("missing triggers or operations")
     end
     local name = if context.requested ~= "" then context.requested else config.triggers[context.event]
-    if context.requested ~= "" and context.event ~= "workflow_dispatch" then
-        fail("operation override requires workflow_dispatch")
-    end
     if type(name) ~= "string" or not name:match("^[a-z][a-z0-9-]*$") then
         fail("no configured operation for event " .. context.event)
     end
@@ -49,7 +46,10 @@ function Operation.Resolve(config: any, context: {
     if not table.find(list(operation.events, name .. ".events"), context.event) then
         fail("operation " .. name .. " is unavailable on " .. context.event)
     end
-    if operation.mode ~= "readonly" and operation.mode ~= "generated" then
+    if operation.actions ~= nil and not table.find(list(operation.actions, name .. ".actions"), context.action or "") then
+        fail("operation " .. name .. " is unavailable for event action " .. (context.action or ""))
+    end
+    if operation.mode ~= "readonly" and operation.mode ~= "generated" and operation.mode ~= "protected" then
         fail("unsupported operation mode: " .. name)
     end
     if operation.mode == "generated" then
@@ -77,6 +77,24 @@ function Operation.Resolve(config: any, context: {
             or operation.branchPrefix:find("%.%.") or operation.branchPrefix:find("//", 1, true) then
             fail("invalid generated branch prefix")
         end
+    elseif operation.mode == "protected" then
+        if context.event == "pull_request" or context.defaultBranch == ""
+            or context.ref ~= "refs/heads/" .. context.defaultBranch then
+            fail("protected work requires a trusted default-branch event")
+        end
+        if operation.execution ~= nil or operation.native ~= nil then
+            fail("protected components cannot request another execution adapter")
+        end
+        if type(operation.environment) ~= "string"
+            or not operation.environment:match("^[a-zA-Z][a-zA-Z0-9_-]*$") then
+            fail("protected operation requires a valid environment")
+        end
+        if #list(operation.components, name .. ".components") == 0 then
+            fail("protected operation selects no components")
+        end
+        if operation.publication == true and context.event == "workflow_dispatch" and not context.confirmPublish then
+            fail("manual publication requires explicit confirmation")
+        end
     else
         if operation.publication == true or operation.execution ~= nil then
             fail("read-only operation cannot request generated execution or publication")
@@ -98,6 +116,7 @@ end
 function Operation.Context(env: { [string]: string }): any
     return {
         event = env.GITHUB_EVENT_NAME or "workflow_dispatch",
+        action = env.CI_EVENT_ACTION or "",
         ref = env.GITHUB_REF or "",
         defaultBranch = env.CI_DEFAULT_BRANCH or "",
         requested = env.CI_REQUESTED_OPERATION or "",
