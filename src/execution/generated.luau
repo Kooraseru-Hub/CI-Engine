@@ -9,19 +9,27 @@ function Generated.Run(route: any, context: any): ()
     if route.mode ~= "generated" then
         error("CI Engine: generated executor cannot run a read-only operation", 0)
     end
-    if Process.env.ACT == "true" then
-        error("CI Engine: the hosted privileged adapter is unavailable under local act", 0)
+    local localExecution = Process.env.ACT == "true"
+    if localExecution and route.publication then
+        error("CI Engine: publication is unavailable locally", 0)
     end
-    if Process.env.GITHUB_ACTIONS ~= "true"
+    if not localExecution and (Process.env.GITHUB_ACTIONS ~= "true"
         or context.event == "pull_request"
         or context.defaultBranch == ""
-        or context.ref ~= "refs/heads/" .. context.defaultBranch then
+        or context.ref ~= "refs/heads/" .. context.defaultBranch) then
         error("CI Engine: privileged adapter requires a trusted default-branch GitHub run", 0)
     end
     local operation = route.operation
     local command = operation.execution.command
     local environment = table.clone(Process.env)
-    environment.CI_EVENT = "push"
+    environment.CI_EVENT = context.event
+    if localExecution then
+        for name in environment do
+            if name == "GH_TOKEN" or name == "GITHUB_TOKEN" or name:sub(1, 14) == "CI_CREDENTIAL_" or name:sub(1, 17) == "ACTIONS_ID_TOKEN_" then
+                environment[name] = ""
+            end
+        end
+    end
     environment.CI_OPERATION = route.plan
     environment.CI_PROFILE = operation.execution.profile or "source-ci"
     environment.CI_PUBLICATION_ENABLED = if route.publication then "true" else "false"

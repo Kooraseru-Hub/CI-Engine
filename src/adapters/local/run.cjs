@@ -17,7 +17,7 @@ function options(args) {
 	const informational = args.some(arg => ["--help", "-h", "--version", "--list", "-l"].includes(arg));
 	if (informational) return { informational: true, operation: "validation", event: "workflow_dispatch", args };
 	const values = new Set(["-W", "--workflows", "-e", "--eventpath", "--input-file", "--secret-file", "--var-file", "--env-file", "--input", "--env", "--secret", "--var", "-P", "--platform", "-j", "--job", "--container-architecture", "--artifact-server-port", "--artifact-server-path", "--actor", "--remote-name", "--network", "--container-options", "--container-daemon-socket", "--action-cache-path", "--concurrent-jobs", "--github-instance", "--matrix", "-s"]);
-	const events = new Set(["push", "pull_request", "workflow_dispatch"]);
+	const events = new Set(["push", "pull_request", "workflow_dispatch", "repository_dispatch"]);
 	let event, operation, payloadOperation, fileOperation = fs.existsSync(path.join(root, ".input")) ? operationFile(".input") : undefined;
 	for (let index = 0; index < args.length; index++) {
 		const arg = args[index];
@@ -30,8 +30,16 @@ function options(args) {
 		if (input?.startsWith("operation=")) operation = input.slice(10);
 		if (values.has(arg)) index++;
 	}
-	const config = JSON.parse(fs.readFileSync(path.join(root, "config/ci/engine.json"), "utf8"));
-	operation ??= fileOperation ?? payloadOperation ?? config.triggers?.[event || "workflow_dispatch"];
+	const config = JSON.parse(fs.readFileSync(path.join(root, "config/ci/operations.json"), "utf8"));
+	const selectedEvent = event || "workflow_dispatch";
+	const entry = { push: "push", pull_request: "pull", workflow_dispatch: "manual", repository_dispatch: "remote" }[selectedEvent];
+	const caller = fs.readFileSync(path.join(root, ".github/workflows", entry + ".yml"), "utf8");
+	const defaults = selectedEvent === "workflow_dispatch"
+		? [...caller.matchAll(/^      operation:\s*\n(?:        [^\n]*\n)*?        default:\s*([a-z][a-z0-9-]*)\s*$/gm)].map(x => x[1])
+		: [...new Set([...caller.matchAll(/^      operation:\s*([a-z][a-z0-9-]*)\s*$/gm)].map(x => x[1]).filter(x => config.operations?.[x]?.events?.includes(selectedEvent)))];
+	if (defaults.length !== 1) throw new Error("Cannot resolve the caller's default operation");
+	operation ??= fileOperation ?? payloadOperation ?? defaults[0];
+	if (selectedEvent !== "workflow_dispatch" && operation !== defaults[0]) throw new Error("Operation is fixed by the event entry point");
 	const route = config.operations?.[operation];
 	if (!route) throw new Error("Unknown CI operation: " + operation);
 	if (!route.events.includes(event || "workflow_dispatch")) throw new Error("Operation unavailable for this event: " + operation);
@@ -63,10 +71,7 @@ function timeoutMilliseconds(environment = process.env) {
 }
 
 function stagedEventArguments(args, selected) {
-	const explicit = args.some(arg => arg === "push" || arg === "pull_request" || arg === "workflow_dispatch");
-	const next = [...selected.args];
-	if (!explicit && selected.operation === "review") next[0] = "pull_request";
-	return next;
+	return [...selected.args];
 }
 async function main(args = process.argv.slice(2)) {
 	const selected = options(args);
@@ -109,7 +114,7 @@ async function main(args = process.argv.slice(2)) {
 	const transport = path.join(runRoot, "transport");
 	const port = execFileSync(process.execPath, ["-e", "const s=require('net').createServer();s.listen(0,()=>{console.log(s.address().port);s.close()})"], { encoding: "utf8", windowsHide: true }).trim();
 	const readToken = selected.operation === "readiness" && args.some((arg, index) => arg.startsWith("--secret=GITHUB_TOKEN=") || ((arg === "--secret" || arg === "-s") && (args[index + 1] === "GITHUB_TOKEN" || args[index + 1]?.startsWith("GITHUB_TOKEN="))));
-	const runtimeArgs = [...(readToken ? ["--secret-file", ""] : ["--secret-file", "", "--secret", "GITHUB_TOKEN="]),"--env", "CI_WORKSPACE_DIGEST=" + workspaceDigest,"--artifact-server-path", transport, "--artifact-server-port", port, "--env", "CI_LOCAL_RUN_ID=" + runId];
+	const runtimeArgs = [...(readToken ? ["--secret-file", ""] : ["--secret-file", "", "--secret", "GITHUB_TOKEN="]),"--env", "ACT=true", "--env", "CI_WORKSPACE_DIGEST=" + workspaceDigest,"--artifact-server-path", transport, "--artifact-server-port", port, "--env", "CI_LOCAL_RUN_ID=" + runId];
 	let worktree, failureStage = "start";
 	publish();
 	try {
@@ -125,10 +130,10 @@ async function main(args = process.argv.slice(2)) {
 		fs.copyFileSync(path.join(worktree, ".vscode/config/act/actrc"), path.join(worktree, ".actrc"));
 		execFileSync("git", ["add", "-A"], { cwd: worktree, windowsHide: true, stdio: "pipe" });
 		const event = stagedEventArguments(args, selected)[0];
-		const entry = event === "push" ? "push.yml" : event === "pull_request" ? "pull.yml" : "manual.yml";
+		const entry = { push: "push.yml", pull_request: "pull.yml", workflow_dispatch: "manual.yml", repository_dispatch: "remote.yml" }[event];
 		prepareStagedWorkflow(path.join(worktree, ".github/workflows/bootstrap.yml"), packageRoot);
 		execFileSync("git", ["add", "-A"], { cwd: worktree, windowsHide: true, stdio: "pipe" });
-		const config = JSON.parse(fs.readFileSync(path.join(root, "config/ci/engine.json"), "utf8"));
+		const config = JSON.parse(fs.readFileSync(path.join(root, "config/ci/operations.json"), "utf8"));
 		const route = config.operations[selected.operation];
 		const authored = ["--workflows", ".github/workflows/" + entry];
 		if (route.mode === "readonly") {

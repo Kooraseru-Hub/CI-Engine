@@ -125,4 +125,15 @@ do
         Operation.Resolve(copy, invalid)
     end)
 end
+do
+    local c: any = table.clone(manual)
+    c.ref = "refs/heads/topic"
+    c.localExecution = true
+    check("local build permits a feature checkout", Operation.Resolve(cfg, c).mode == "generated")
+    c.requested = "publish"
+    c.confirmPublish = true
+    rejects("local publication is refused regardless of confirmation", function()
+        Operation.Resolve(cfg, c)
+    end)
+end
 print("CI Engine: " .. passed .. " operation routing tests passed")

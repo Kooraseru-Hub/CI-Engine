@@ -38,7 +38,8 @@ end
 
 local function main(): ()
     local phase = Process.env.CI_ENGINE_PHASE or "execute"
-    local defaultConfig = if Fs.exists("config/ci/engine.json") then "config/ci/engine.json" else ".github/config/ci/engine.json"
+    local defaultConfig = if Fs.exists("config/ci/operations.json") then "config/ci/operations.json"
+        elseif Fs.exists("config/ci/engine.json") then "config/ci/engine.json" else ".github/config/ci/engine.json"
     local config = load(Process.env.CI_ENGINE_CONFIG or defaultConfig)
     local context = Operation.Context(Process.env)
     local route = Operation.Resolve(config, context)
@@ -80,8 +81,8 @@ local function main(): ()
             end
             print("CI Engine: inspected " .. route.mode .. " policy and safe component root")
         else
-            if context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch
-                or context.event == "pull_request" then
+            if not context.localExecution and (context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch
+                or context.event == "pull_request") then
                 fail("generated execution requires a trusted default-branch event")
             end
             if type(route.operation.execution) ~= "table"
@@ -121,7 +122,7 @@ local function main(): ()
         writeOutput("operation", route.name)
         writeOutput("native", if route.mode == "readonly" and route.operation.native ~= nil then "true" else "false")
         if route.mode ~= "readonly" then
-            if context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch then
+            if not context.localExecution and (context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch) then
                 fail("untrusted event cannot authorize generated execution")
             end
             print("CI Engine: trusted execution authorized for environment " .. route.environment)

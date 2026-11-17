@@ -29,7 +29,7 @@ local function list(value: any, where: string): { string }
 end
 
 function Operation.Resolve(config: any, context: {
-    event: string, ref: string, defaultBranch: string, requested: string, confirmPublish: boolean, action: string?,
+    event: string, ref: string, defaultBranch: string, requested: string, confirmPublish: boolean, action: string?, localExecution: boolean?,
 }): any
     if type(config) ~= "table" or config.version ~= 1 then
         fail("unsupported engine configuration version")
@@ -55,7 +55,9 @@ function Operation.Resolve(config: any, context: {
         if context.event == "pull_request" or (context.event ~= "push" and context.event ~= "workflow_dispatch") then
             fail("untrusted events cannot run generated work")
         end
-        if context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch then
+        if context.localExecution then
+            if operation.publication == true then fail("publication is unavailable locally") end
+        elseif context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch then
             fail("generated work requires the repository's default branch")
         end
         if operation.publication == true and context.event == "workflow_dispatch" and not context.confirmPublish then
@@ -77,6 +79,7 @@ function Operation.Resolve(config: any, context: {
             fail("invalid generated branch prefix")
         end
     elseif operation.mode == "protected" then
+        if context.localExecution then fail("protected work is unavailable locally") end
         if context.event == "pull_request" or context.defaultBranch == ""
             or context.ref ~= "refs/heads/" .. context.defaultBranch then
             fail("protected work requires a trusted default-branch event")
@@ -120,6 +123,7 @@ function Operation.Context(env: { [string]: string }): any
         defaultBranch = env.CI_DEFAULT_BRANCH or "",
         requested = env.CI_REQUESTED_OPERATION or "",
         confirmPublish = env.CI_REQUESTED_PUBLISH == "true",
+        localExecution = env.ACT == "true",
     }
 end
 
