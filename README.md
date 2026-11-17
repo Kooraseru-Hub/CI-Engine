@@ -8,9 +8,9 @@ A reusable, language-independent CI coordinator. Repositories own their operatio
 - **action.yml** – an independently usable composite action supporting resolve, prepare, discover, inspect, plan, authorize, execute and generated phases
 - **src/** – the generic Lute runtime, without requiring a Node controller or any particular project language
 
-The consumer's event workflows pin Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml directly to the same exact commit SHA. No local facade is required. Group event entry points by consumer (push, pull request, manual, remote) and pass explicit operations and narrowly scoped permissions.
+Consumers can pin Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml through one local workflow_call-only bootstrap reference, or call the external workflow directly. A local dependency provider may derive its exact revision from that reference. Group event entry points by consumer (push, pull request, manual, remote) and pass explicit operations and narrowly scoped permissions.
 
-The consumer declares operations (legacy trigger defaults remain available to direct runtime callers) in .github/config/ci/engine.json. Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
+The consumer declares operations (legacy trigger defaults remain available to direct runtime callers) in config/ci/engine.json (legacy .github/config/ci/engine.json is supported). Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
 
 Generated operations invoke a **repository-owned execution adapter** only after the engine's separate trusted job passes its event, default-branch and protected-environment checks. Such an adapter can compile GitHub-native workflow DAGs, dispatch them, verify completion, publish, manage generated branches, and clean up. The engine does not hardcode toolchains, publishers, phases, or repository names. A nonzero adapter exit fails the required final result.
 

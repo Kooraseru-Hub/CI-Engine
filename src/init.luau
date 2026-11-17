@@ -38,7 +38,8 @@ end
 
 local function main(): ()
     local phase = Process.env.CI_ENGINE_PHASE or "execute"
-    local config = load(Process.env.CI_ENGINE_CONFIG or ".github/config/ci/engine.json")
+    local defaultConfig = if Fs.exists("config/ci/engine.json") then "config/ci/engine.json" else ".github/config/ci/engine.json"
+    local config = load(Process.env.CI_ENGINE_CONFIG or defaultConfig)
     local context = Operation.Context(Process.env)
     local route = Operation.Resolve(config, context)
     local expected = Process.env.CI_ENGINE_SELECTED_OPERATION
@@ -70,7 +71,7 @@ local function main(): ()
         -- Independent of component discovery. Verify the selected execution
         -- boundary and repository event context before authorization.
         if route.mode ~= "generated" then
-            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
+            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
             if type(root) ~= "string" or not Component.ValidRoot(root) then
                 fail("unsafe read-only component root")
             end
@@ -93,7 +94,7 @@ local function main(): ()
     end
     if phase == "discover" or phase == "plan" then
         if route.mode ~= "generated" then
-            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
+            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
             if type(root) ~= "string" or not Component.ValidRoot(root) then fail("unsafe component root") end
             local components = Discovery.Load(root)
             if phase == "discover" then
@@ -164,7 +165,7 @@ local function main(): ()
         fail("privileged work cannot run in read-only executor")
     end
 
-    local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or "ci/components"
+    local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
     if type(root) ~= "string" or not Component.ValidRoot(root) then fail("unsafe component root") end
     local components = Discovery.Load(root)
     local plan = Graph.Plan(components, route.operation.components, context.event, route.mode)
