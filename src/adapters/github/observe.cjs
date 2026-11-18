@@ -57,11 +57,11 @@ async function observe(phase, runID, env, api = resource => get(resource,env), d
   do {
     const run=await api(root);
     if (run.id !== Number(runID) || run.event !== "repository_dispatch") throw new Error("Invalid engine run");
-    if (phase === "Complete") {
+    if (phase.toLowerCase() === "complete") {
       if (run.status === "completed") return {conclusion:run.conclusion || "unknown"};
     } else {
       const jobs=await pages(root+"/jobs?filter=latest&per_page=100","jobs",api);
-      const matches=jobs.filter(job => typeof job.name==="string" && job.name.endsWith(" / "+phase));
+      const matches=jobs.filter(job => typeof job.name==="string" && job.name.split(" / ").at(-1).toLowerCase() === phase.toLowerCase());
       if (matches.length>1) throw new Error("Ambiguous CI phase: "+phase);
       const job=matches[0];
       if (job?.status==="completed") return {conclusion:job.conclusion || "unknown",job_id:String(job.id)};
@@ -71,23 +71,40 @@ async function observe(phase, runID, env, api = resource => get(resource,env), d
   } while(now()<deadline);
   throw new Error("Timed out waiting for CI Engine "+phase);
 }
+async function status(runID, env, api = resource => get(resource,env)) {
+  if (!ID.test(runID)) throw new Error("Invalid engine run ID");
+  const root=base(env)+"/runs/"+runID;
+  const run=await api(root);
+  if (run.id !== Number(runID) || run.event !== "repository_dispatch") throw new Error("Invalid engine run");
+  const jobs=await pages(root+"/jobs?filter=latest&per_page=100","jobs",api);
+  const phases=Object.fromEntries(jobs.map(job=>[
+    job.name.split(" / ").at(-1).toLowerCase(),
+    {job_id:String(job.id),status:job.status,conclusion:job.conclusion || null}
+  ]));
+  if (Object.keys(phases).length !== jobs.length) throw new Error("Ambiguous CI phases");
+  return {run_id:runID,status:run.status,conclusion:run.conclusion || null,phases:JSON.stringify(phases)};
+}
 function output(result, env=process.env) {
   for (const [key,value] of Object.entries(result)) {
     if (/[\r\n]/.test(value)) throw new Error("Invalid signal output");
     fs.appendFileSync(env.GITHUB_OUTPUT,key+"="+value+"\n");
   }
 }
-module.exports={title,discover,observe};
+module.exports={title,discover,observe,status};
 if(require.main===module)(async()=>{
-  const [phase,runID]=process.argv.slice(2);
-  if(phase==="Discover"){
+  const [command,runID,phase="Complete"]=process.argv.slice(2);
+  if(command==="connect"){
     const result=await discover(process.env);
     output(result);
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,"[Independent CI run]("+result.run_url+")\n");
-  }else{
+  }else if(command==="status"){
+    output(await status(runID,process.env));
+  }else if(command==="wait"){
     const result=await observe(phase,runID,process.env);
     output(result);
     console.log("CI Engine signal: "+phase+" = "+result.conclusion);
     if(result.conclusion!=="success")process.exitCode=1;
+  }else{
+    throw new Error("Expected connect, status <run-id>, or wait <run-id> [phase]");
   }
 })().catch(error=>{console.error(error.message);process.exitCode=1});

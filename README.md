@@ -90,3 +90,7 @@ The native adapter (`src/native/`) owns discovery of Luau component contracts, d
 ## Event dispatch
 
 Consumers may invoke the engine from an independent `repository_dispatch` workflow. Admission validates immutable source identity against GitHub before checkout, while the execution jobs receive a read-only repository token. For PRs the engine creates and completes its required check on the requested head SHA; the trusted check writer never runs consumer commands. Local execution stages the same dispatch workflow and simulates admission without contacting GitHub.
+
+### Observation API
+
+The event-side client (`src/adapters/github/observe.cjs`) exposes independent, optional read-only accessors. Load the client at the consumer's authoritative engine pin. `connect` correlates a request using `REQUEST_ID`, `REQUEST_SHA` and `CI_OPERATION` and exports `run_id` and `run_url`. `status <run-id>` returns a snapshot of the workflow and currently visible phases without waiting. `wait <run-id> [phase]` blocks until the selected phase completes, or until the whole workflow completes if no phase is supplied; a non-success conclusion fails the command. Phase names are case-insensitive and do not require prior subscriptions. Every phase executes independently of observers. Most consumers need only connect and terminal wait. A consumer may opt into any intermediate phase to attach its own work; observation is not a gate and does not authorize access to additional credentials.
