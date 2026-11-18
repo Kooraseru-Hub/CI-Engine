@@ -48,40 +48,27 @@ function Operation.Resolve(config: any, context: {
     if operation.actions ~= nil and not table.find(list(operation.actions, name .. ".actions"), context.action or "") then
         fail("operation " .. name .. " is unavailable for event action " .. (context.action or ""))
     end
-    if operation.mode ~= "readonly" and operation.mode ~= "generated" and operation.mode ~= "protected" then
+    if operation.mode ~= "readonly" and operation.mode ~= "staged" and operation.mode ~= "protected" then
         fail("unsupported operation mode: " .. name)
     end
     if operation.native ~= nil then fail("obsolete external validation adapter; use hostTests") end
-    if operation.hostTests ~= nil and operation.mode ~= "readonly" then fail("host tests require read-only execution") end
+    if operation.hostTests ~= nil and operation.mode ~= "readonly" and operation.mode ~= "staged" then fail("host tests require read-only execution") end
     if context.event == "pull_request" and operation.mode ~= "readonly" then fail("PR requests must remain read-only") end
-    if operation.mode == "generated" then
-        if context.event == "pull_request" or (context.event ~= "push" and context.event ~= "workflow_dispatch") then
-            fail("untrusted events cannot run generated work")
+    if operation.mode == "staged" then
+        if context.localExecution or context.event ~= "workflow_dispatch" or context.defaultBranch == ""
+            or context.ref ~= "refs/heads/" .. context.defaultBranch or not context.confirmPublish
+            or operation.publication ~= true then
+            fail("staged publication requires an explicitly confirmed, trusted hosted default-branch dispatch")
         end
-        if context.localExecution then
-            if operation.publication == true then fail("publication is unavailable locally") end
-        elseif context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch then
-            fail("generated work requires the repository's default branch")
+        if type(operation.delivery) ~= "table" or #list(operation.delivery.command, name .. ".delivery.command") == 0 then
+            fail("staged publication requires a delivery planner")
         end
-        if operation.publication == true and context.event == "workflow_dispatch" and not context.confirmPublish then
-            fail("manual publication requires explicit confirmation")
-        end
-        if type(operation.execution) ~= "table" then fail("generated operation has no execution adapter") end
-        local command = list(operation.execution.command, name .. ".execution.command")
-        if #command == 0 then fail("generated adapter requires an executable") end
-        if type(operation.environment) ~= "string"
-            or not operation.environment:match("^[a-zA-Z][a-zA-Z0-9_-]*$") then
-            fail("generated operation requires a valid protected environment")
-        end
-        if type(operation.plan) ~= "string" or not operation.plan:match("^[a-zA-Z][a-zA-Z0-9_-]*$") then
-            fail("generated operation requires an execution plan")
-        end
-        if type(operation.branchPrefix) ~= "string"
-            or not operation.branchPrefix:match("^[a-zA-Z0-9][a-zA-Z0-9/-]*-$")
-            or operation.branchPrefix:find("%.%.") or operation.branchPrefix:find("//", 1, true) then
-            fail("invalid generated branch prefix")
+        if #list(operation.components, name .. ".components") == 0 then fail("staged operation selects no build components") end
+        if operation.execution ~= nil or operation.branchPrefix ~= nil or operation.plan ~= nil then
+            fail("staged operations cannot launch another workflow")
         end
     elseif operation.mode == "protected" then
+        if operation.delivery ~= nil then fail("protected operations cannot declare staged delivery") end
         if context.localExecution then fail("protected work is unavailable locally") end
         if context.event == "pull_request" or context.defaultBranch == ""
             or context.ref ~= "refs/heads/" .. context.defaultBranch then
@@ -101,7 +88,7 @@ function Operation.Resolve(config: any, context: {
             fail("manual publication requires explicit confirmation")
         end
     else
-        if operation.publication == true or operation.execution ~= nil then
+        if operation.publication == true or operation.execution ~= nil or operation.delivery ~= nil then
             fail("read-only operation cannot request generated execution or publication")
         end
         local patterns = list(operation.components, name .. ".components")
@@ -114,8 +101,7 @@ function Operation.Resolve(config: any, context: {
         end
     end
     return { name = name, mode = operation.mode, environment = operation.environment or "",
-        publication = operation.publication == true, plan = operation.plan or "",
-        branchPrefix = operation.branchPrefix or "", operation = operation }
+        publication = operation.publication == true, operation = operation }
 end
 
 function Operation.Context(env: { [string]: string }): any

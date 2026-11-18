@@ -13,7 +13,7 @@ inputs:
     required: false
     default: ""
   phase:
-    description: resolve, prepare, discover, inspect, plan, authorize, execute, generated, or protected
+    description: resolve, prepare, discover, inspect, plan, authorize, execute, protected, or delivery-*
     required: false
     default: execute
 outputs:
@@ -50,9 +50,6 @@ outputs:
   environment:
     description: Trusted execution environment
     value: ${{ steps.engine.outputs.environment }}
-  plan:
-    description: Generated execution plan
-    value: ${{ steps.engine.outputs.plan }}
   host_tests:
     description: Native host-test plan host_tests
     value: ${{ steps.engine.outputs.host_tests }}
@@ -65,12 +62,69 @@ outputs:
   publication:
     description: Whether this operation permits publication
     value: ${{ steps.engine.outputs.publication }}
-  branch_prefix:
-    description: Generated temporary branch namespace
-    value: ${{ steps.engine.outputs.branch_prefix }}
+  delivery_artifact:
+    description: Staged delivery artifact
+    value: ${{ steps.delivery.outputs.artifact }}
+  delivery_destination:
+    description: Staged delivery destination
+    value: ${{ steps.delivery.outputs.destination }}
+  delivery_prepare_ref:
+    description: Staged delivery prepare_ref
+    value: ${{ steps.delivery.outputs.prepare_ref }}
+  delivery_prepare_command:
+    description: Staged delivery prepare_command
+    value: ${{ steps.delivery.outputs.prepare_command }}
+  delivery_prepare_env:
+    description: Staged delivery prepare_env
+    value: ${{ steps.delivery.outputs.prepare_env }}
+  delivery_contents:
+    description: Staged delivery contents
+    value: ${{ steps.delivery.outputs.contents }}
+  delivery_issues:
+    description: Staged delivery issues
+    value: ${{ steps.delivery.outputs.issues }}
+  delivery_credential:
+    description: Staged delivery credential
+    value: ${{ steps.delivery.outputs.credential }}
+  delivery_pages:
+    description: Staged delivery pages
+    value: ${{ steps.delivery.outputs.pages }}
+  delivery_external:
+    description: Staged delivery external
+    value: ${{ steps.delivery.outputs.external }}
+  delivery_has_contents:
+    description: Staged delivery has_contents
+    value: ${{ steps.delivery.outputs.has_contents }}
+  delivery_has_issues:
+    description: Staged delivery has_issues
+    value: ${{ steps.delivery.outputs.has_issues }}
+  delivery_has_credential:
+    description: Staged delivery has_credential
+    value: ${{ steps.delivery.outputs.has_credential }}
+  delivery_has_pages:
+    description: Staged delivery has_pages
+    value: ${{ steps.delivery.outputs.has_pages }}
+  delivery_has_external:
+    description: Staged delivery has_external
+    value: ${{ steps.delivery.outputs.has_external }}
+  delivery_enabled:
+    description: Staged delivery enabled
+    value: ${{ steps.delivery.outputs.enabled }}
+  delivery_path:
+    description: Staged delivery path
+    value: ${{ steps.delivery.outputs.path }}
 runs:
   using: composite
   steps:
+    - name: Run staged delivery adapter
+      id: delivery
+      if: ${{ startsWith(inputs.phase, 'delivery-') }}
+      shell: bash
+      env:
+        CI_DELIVERY_OPERATION: ${{ inputs.operation }}
+        CI_DELIVERY_CONFIRM: ${{ inputs.publish }}
+        CI_DELIVERY_PHASE: ${{ inputs.phase }}
+      run: node "$GITHUB_ACTION_PATH/src/adapters/github/delivery.cjs" "$CI_DELIVERY_PHASE"
     - name: Admit request or report status
       if: ${{ inputs.phase == 'admit' || inputs.phase == 'status' }}
       id: admission
@@ -83,14 +137,14 @@ runs:
         CI_ADMISSION_PHASE: ${{ inputs.phase }}
       run: node "$GITHUB_ACTION_PATH/src/adapters/github/request.cjs" "$CI_ADMISSION_PHASE"
     - name: Provision engine runtime
-      if: ${{ inputs.phase != 'admit' && inputs.phase != 'status' }}
+      if: ${{ inputs.phase != 'admit' && inputs.phase != 'status' && !startsWith(inputs.phase, 'delivery-') }}
       uses: jdx/mise-action@v5
       with:
         version: "2026.11.8"
         working_directory: ${{ github.action_path }}
         install: true
     - name: Run selected engine phase
-      if: ${{ inputs.phase != 'admit' && inputs.phase != 'status' }}
+      if: ${{ inputs.phase != 'admit' && inputs.phase != 'status' && !startsWith(inputs.phase, 'delivery-') }}
       id: engine
       shell: bash
       working-directory: ${{ github.workspace }}

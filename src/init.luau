@@ -8,7 +8,6 @@ local Discovery = require("@engine/discovery/components")
 local Graph = require("@engine/planning/graph")
 local Components = require("@engine/execution/components")
 local Operation = require("@engine/configuration/operation")
-local Generated = require("@engine/execution/generated")
 local HostTests = require("@engine/planning/hostTests")
 
 local function fail(message: string): never
@@ -51,9 +50,7 @@ local function main(): ()
         writeOutput("operation", route.name)
         writeOutput("mode", route.mode)
         writeOutput("environment", route.environment)
-        writeOutput("plan", route.plan)
         writeOutput("publication", if route.publication then "true" else "false")
-        writeOutput("branch_prefix", route.branchPrefix)
         print("CI Engine: " .. route.name .. " selected (" .. route.mode .. ")")
         return
     end
@@ -69,8 +66,7 @@ local function main(): ()
     if phase == "inspect" then
         -- Independent of component discovery. Verify the selected execution
         -- boundary and repository event context before authorization.
-        if route.mode ~= "generated" then
-            local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
+        local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
             if type(root) ~= "string" or not Component.ValidRoot(root) then
                 fail("unsafe read-only component root")
             end
@@ -78,17 +74,6 @@ local function main(): ()
                 fail("read-only operation cannot request privileged execution")
             end
             print("CI Engine: inspected " .. route.mode .. " policy and safe component root")
-        else
-            if not context.localExecution and (context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch
-                or context.event == "pull_request") then
-                fail("generated execution requires a trusted default-branch event")
-            end
-            if type(route.operation.execution) ~= "table"
-                or type(route.operation.execution.command) ~= "table" then
-                fail("generated execution adapter is missing")
-            end
-            print("CI Engine: inspected generated policy for " .. route.environment)
-        end
         return
     end
     if phase == "plan" then
@@ -98,7 +83,6 @@ local function main(): ()
         writeOutput("host_artifact", artifact)
     end
     if phase == "discover" or phase == "plan" then
-        if route.mode ~= "generated" then
             local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
             if type(root) ~= "string" or not Component.ValidRoot(root) then fail("unsafe component root") end
             local components = Discovery.Load(root)
@@ -108,16 +92,13 @@ local function main(): ()
                 if count == 0 then fail("no component contracts discovered") end
                 print("CI Engine: discovered " .. count .. " tracked component contracts")
             else
-                local plan = Graph.Plan(components, route.operation.components, context.event, route.mode)
+                local plan = Graph.Plan(components, route.operation.components, context.event, if route.mode == "staged" then "readonly" else route.mode)
                 if #plan.ordered == 0 then fail("no components selected by " .. route.name) end
                 print("CI Engine: execution plan (" .. #plan.ordered .. " components)")
                 for position, identity in plan.ordered do
                     print(position .. ". " .. identity)
                 end
             end
-        else
-            print("CI Engine: " .. phase .. " delegates the native graph to the declared generated adapter")
-        end
         return
     end
     if phase == "authorize" then
@@ -135,11 +116,6 @@ local function main(): ()
         end
         return
     end
-    if phase == "generated" then
-        Generated.Run(route, context)
-        print("CI Engine: generated operation completed successfully")
-        return
-    end
     if phase ~= "execute" and phase ~= "protected" then fail("unknown engine phase: " .. phase) end
     if phase == "protected" then
         if route.mode ~= "protected" or Process.env.ACT == "true" or Process.env.GITHUB_ACTIONS ~= "true"
@@ -147,7 +123,7 @@ local function main(): ()
             or context.event == "pull_request" then
             fail("protected execution requires a trusted hosted operation")
         end
-    elseif route.mode ~= "readonly" then
+    elseif route.mode ~= "readonly" and route.mode ~= "staged" then
         fail("privileged work cannot run in read-only executor")
     end
 
