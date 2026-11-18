@@ -13,7 +13,7 @@ inputs:
     required: false
     default: ""
   phase:
-    description: resolve, prepare, discover, inspect, plan, authorize, execute, protected, or delivery-*
+    description: resolve, prepare, discover, inspect, plan, authorize, execute, or delivery-*
     required: false
     default: execute
 outputs:
@@ -47,9 +47,6 @@ outputs:
   mode:
     description: Validated execution mode
     value: ${{ steps.engine.outputs.mode }}
-  environment:
-    description: Trusted execution environment
-    value: ${{ steps.engine.outputs.environment }}
   host_tests:
     description: Native host-test plan host_tests
     value: ${{ steps.engine.outputs.host_tests }}

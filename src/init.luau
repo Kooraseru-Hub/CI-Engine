@@ -49,7 +49,6 @@ local function main(): ()
     if phase == "resolve" then
         writeOutput("operation", route.name)
         writeOutput("mode", route.mode)
-        writeOutput("environment", route.environment)
         writeOutput("publication", if route.publication then "true" else "false")
         print("CI Engine: " .. route.name .. " selected (" .. route.mode .. ")")
         return
@@ -103,36 +102,26 @@ local function main(): ()
     end
     if phase == "authorize" then
         writeOutput("mode", route.mode)
-        writeOutput("environment", route.environment)
         writeOutput("operation", route.name)
         if route.mode ~= "readonly" then
             if not context.localExecution and Process.env.CI_ORIGIN_TRUSTED ~= "true" then fail("privileged work requires trusted admission") end
             if not context.localExecution and (context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch) then
                 fail("untrusted event cannot authorize privileged execution")
             end
-            print("CI Engine: trusted execution authorized for environment " .. route.environment)
+            print("CI Engine: trusted staged delivery authorized")
         else
             print("CI Engine: read-only execution authorized without publishing credentials")
         end
         return
     end
-    if phase ~= "execute" and phase ~= "protected" then fail("unknown engine phase: " .. phase) end
-    if phase == "protected" then
-        if route.mode ~= "protected" or Process.env.ACT == "true" or Process.env.GITHUB_ACTIONS ~= "true"
-            or context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch
-            or context.event == "pull_request" then
-            fail("protected execution requires a trusted hosted operation")
-        end
-    elseif route.mode ~= "readonly" and route.mode ~= "staged" then
-        fail("privileged work cannot run in read-only executor")
-    end
+    if phase ~= "execute" then fail("unknown engine phase: " .. phase) end
 
     local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
     if type(root) ~= "string" or not Component.ValidRoot(root) then fail("unsafe component root") end
     local components = Discovery.Load(root)
     local plan = Graph.Plan(components, route.operation.components, context.event, if route.mode == "staged" then "readonly" else route.mode)
     print("CI Engine: " .. route.name .. " (" .. context.event .. "), " .. #plan.ordered .. " component(s)")
-    Components.Run(plan.ordered, components, phase == "protected")
+    Components.Run(plan.ordered, components)
     print("CI Engine: operation completed successfully")
 end
 

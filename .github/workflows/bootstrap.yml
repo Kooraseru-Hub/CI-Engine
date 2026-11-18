@@ -12,29 +12,14 @@ on:
         description: Consumer-defined operation selected by the calling workflow
         type: string
         required: true
-      component_variables:
-        description: Explicit JSON object of non-secret component bindings
-        type: string
-        required: false
-        default: "{}"
       publish:
-        description: Explicit manual publication confirmation
+        description: Explicit publication confirmation
         type: boolean
         required: false
         default: false
-    secrets:
-      app_private_key:
-        description: Optional GitHub App private key for trusted publication
-        required: false
-      bootstrap_token:
-        description: Optional scoped bootstrap token for trusted publication
-        required: false
-      component_credentials:
-        description: Explicit JSON object of credentials for protected component execution
-        required: false
 
-# Each caller defines the maximum permissions; planning jobs downgrade to read-only.
-# Execute inherits the caller ceiling so protected and untrusted invocations differ.
+
+# Each executable job receives only the authority of its static permission lane.
 jobs:
   resolve:
     name: Resolve
@@ -55,7 +40,6 @@ jobs:
       inputs: ${{ steps.admit.outputs.inputs }}
       operation: ${{ steps.route.outputs.operation }}
       mode: ${{ steps.route.outputs.mode }}
-      environment: ${{ steps.route.outputs.environment }}
       publication: ${{ steps.route.outputs.publication }}
     steps:
       - name: Admit immutable execution request
@@ -207,6 +191,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v7
@@ -257,7 +242,6 @@ jobs:
     outputs:
       operation: ${{ steps.permission.outputs.operation }}
       mode: ${{ steps.permission.outputs.mode }}
-      environment: ${{ steps.permission.outputs.environment }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v7
@@ -290,7 +274,7 @@ jobs:
       contents: read
       actions: read
     environment:
-      name: ${{ needs.authorize.outputs.mode == 'protected' && needs.authorize.outputs.environment || 'ci-readonly' }}
+      name: ci-readonly
       deployment: false
     steps:
       - name: Checkout consumer
@@ -300,26 +284,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Execute read-only components
-        if: ${{ (needs.authorize.outputs.mode == 'readonly' || needs.authorize.outputs.mode == 'staged') }}
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
         with:
           phase: execute
-          operation: ${{ inputs.operation }}
-          publish: ${{ inputs.publish }}
-      - name: Execute protected components
-        if: ${{ needs.authorize.outputs.mode == 'protected' && needs.resolve.outputs.trusted == 'true' }}
-        uses: $/
-        env:
-          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
-          CI_COMPONENT_CREDENTIALS: ${{ secrets.CI_COMPONENT_CREDENTIALS || secrets.component_credentials }}
-          CI_COMPONENT_VARIABLES: ${{ vars.CI_COMPONENT_VARIABLES || inputs.component_variables }}
-          CI_COMPONENT_GITHUB_TOKEN: ${{ github.token }}
-        with:
-          phase: protected
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Checkout isolated delivery candidate
@@ -359,7 +329,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Preserve code review diagnostics
-        if: ${{ always() && needs.authorize.outputs.mode == 'readonly' }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
           name: code-review-findings
@@ -367,7 +337,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Preserve rules diagnostics
-        if: ${{ always() && needs.authorize.outputs.mode == 'readonly' }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
           name: rules-audit-findings
@@ -582,6 +552,9 @@ jobs:
       actions: read
       pages: write
       id-token: write
+    concurrency:
+      group: pages-site-${{ github.repository }}
+      cancel-in-progress: false
     environment:
       name: ${{ matrix.environment }}
       url: ${{ steps.deployment.outputs.page_url }}

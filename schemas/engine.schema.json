@@ -29,8 +29,7 @@
             "type": "string",
             "enum": [
               "readonly",
-              "staged",
-              "protected"
+              "staged"
             ]
           },
           "events": {
@@ -58,10 +57,6 @@
           "extensions": {
             "type": "object",
             "additionalProperties": true
-          },
-          "environment": {
-            "type": "string",
-            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
           },
           "publication": {
             "type": "boolean"
@@ -149,35 +144,6 @@
                 "publication": {
                   "const": true
                 }
-              }
-            }
-          },
-          {
-            "if": {
-              "properties": {
-                "mode": {
-                  "const": "protected"
-                }
-              }
-            },
-            "then": {
-              "required": [
-                "components",
-                "environment"
-              ],
-              "not": {
-                "anyOf": [
-                  {
-                    "required": [
-                      "delivery"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "hostTests"
-                    ]
-                  }
-                ]
               }
             }
           }

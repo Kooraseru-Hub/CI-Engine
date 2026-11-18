@@ -48,11 +48,12 @@ function Operation.Resolve(config: any, context: {
     if operation.actions ~= nil and not table.find(list(operation.actions, name .. ".actions"), context.action or "") then
         fail("operation " .. name .. " is unavailable for event action " .. (context.action or ""))
     end
-    if operation.mode ~= "readonly" and operation.mode ~= "staged" and operation.mode ~= "protected" then
+    if operation.mode ~= "readonly" and operation.mode ~= "staged" then
         fail("unsupported operation mode: " .. name)
     end
-    if operation.native ~= nil then fail("obsolete external validation adapter; use hostTests") end
-    if operation.hostTests ~= nil and operation.mode ~= "readonly" and operation.mode ~= "staged" then fail("host tests require read-only execution") end
+    if operation.native ~= nil or operation.execution ~= nil or operation.branchPrefix ~= nil or operation.plan ~= nil then
+        fail("external workflow generation is not an execution capability")
+    end
     if context.event == "pull_request" and operation.mode ~= "readonly" then fail("PR requests must remain read-only") end
     if operation.mode == "staged" then
         if context.localExecution or context.event ~= "workflow_dispatch" or context.defaultBranch == ""
@@ -67,41 +68,20 @@ function Operation.Resolve(config: any, context: {
         if operation.execution ~= nil or operation.branchPrefix ~= nil or operation.plan ~= nil then
             fail("staged operations cannot launch another workflow")
         end
-    elseif operation.mode == "protected" then
-        if operation.delivery ~= nil then fail("protected operations cannot declare staged delivery") end
-        if context.localExecution then fail("protected work is unavailable locally") end
-        if context.event == "pull_request" or context.defaultBranch == ""
-            or context.ref ~= "refs/heads/" .. context.defaultBranch then
-            fail("protected work requires a trusted default-branch event")
-        end
-        if operation.execution ~= nil or operation.hostTests ~= nil then
-            fail("protected components cannot request another execution adapter")
-        end
-        if type(operation.environment) ~= "string"
-            or not operation.environment:match("^[a-zA-Z][a-zA-Z0-9_-]*$") then
-            fail("protected operation requires a valid environment")
-        end
-        if #list(operation.components, name .. ".components") == 0 then
-            fail("protected operation selects no components")
-        end
-        if operation.publication == true and context.event == "workflow_dispatch" and not context.confirmPublish then
-            fail("manual publication requires explicit confirmation")
-        end
     else
         if operation.publication == true or operation.execution ~= nil or operation.delivery ~= nil then
             fail("read-only operation cannot request generated execution or publication")
         end
         local patterns = list(operation.components, name .. ".components")
         if #patterns == 0 then fail("read-only operation selects no components") end
-        if operation.hostTests ~= nil then
-            local spec = operation.hostTests
-            if type(spec) ~= "table" or type(spec.artifactPath) ~= "string" or #list(spec.command, name .. ".hostTests.command") == 0 then
-                fail("invalid host-test declaration")
-            end
+    end
+    if operation.hostTests ~= nil then
+        local spec = operation.hostTests
+        if type(spec) ~= "table" or type(spec.artifactPath) ~= "string" or #list(spec.command, name .. ".hostTests.command") == 0 then
+            fail("invalid host-test declaration")
         end
     end
-    return { name = name, mode = operation.mode, environment = operation.environment or "",
-        publication = operation.publication == true, operation = operation }
+    return { name = name, mode = operation.mode, publication = operation.publication == true, operation = operation }
 end
 
 function Operation.Context(env: { [string]: string }): any
