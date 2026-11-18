@@ -57,3 +57,12 @@ test("optional Test signal aggregates matrix children",async()=>{
  ]}:{...target,status:"in_progress"},tick);
  assert.equal(result.conclusion,"failure");assert.deepEqual(JSON.parse(result.job_ids),[1,2]);
 });
+
+test("unselected delivery lanes do not fail a real Publish group",async()=>{
+ const result=await observe("Publish","42",env,async path=>path.includes("/jobs?")?{jobs:[
+  {id:1,name:"CI Engine / engine / Publish (contents: ${{ matrix.id }})",status:"completed",conclusion:"skipped"},
+  {id:2,name:"CI Engine / engine / Publish (issues: labels)",status:"completed",conclusion:"success"},
+  {id:3,name:"CI Engine / engine / Collect",status:"in_progress",conclusion:null}
+ ]}:{...target,status:"in_progress"},tick);
+ assert.equal(result.conclusion,"success");assert.deepEqual(JSON.parse(result.job_ids),[2]);
+});

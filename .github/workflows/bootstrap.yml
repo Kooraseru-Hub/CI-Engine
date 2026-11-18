@@ -387,7 +387,7 @@ jobs:
           }
 
   publish_contents:
-    name: Publish (${{ matrix.id }})
+    name: Publish (contents: ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
     if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_contents == 'true' }}
     strategy:
@@ -440,7 +440,7 @@ jobs:
           publish: ${{ inputs.publish }}
 
   publish_issues:
-    name: Publish (${{ matrix.id }})
+    name: Publish (issues: ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
     if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_issues == 'true' }}
     strategy:
@@ -494,7 +494,7 @@ jobs:
           publish: ${{ inputs.publish }}
 
   publish_credential:
-    name: Publish (${{ matrix.id }})
+    name: Publish (credential: ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
     if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_credential == 'true' }}
     strategy:
@@ -547,7 +547,7 @@ jobs:
           publish: ${{ inputs.publish }}
 
   publish_pages:
-    name: Publish (${{ matrix.id }})
+    name: Publish (pages: ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
     if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_pages == 'true' }}
     strategy:
@@ -623,7 +623,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   publish_external:
-    name: Publish (${{ matrix.id }})
+    name: Publish (external: ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
     if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_external == 'true' }}
     strategy:

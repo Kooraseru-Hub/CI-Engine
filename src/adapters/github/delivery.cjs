@@ -112,6 +112,10 @@ function run(env=process.env,options=false){
     delete child["CI_SLOT_"+i];
   }
   if(entry.bindings.some(b=>b.role.startsWith("CI_CREDENTIAL_"))) child.CI_CREDENTIAL_ENVIRONMENT=entry.environment;
+  if(entry.lane!=="pages"){
+    delete child.ACTIONS_ID_TOKEN_REQUEST_URL;
+    delete child.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+  }
   // The native adapter's contract is immutable across build and publication.
   Object.assign(child,{CI_EVENT:"push",CI_OPERATION:env.CI_DELIVERY_OPERATION,CI_PHASE:"publish",CI_GRAPH_RUN:"true",CI_SOURCE_SHA:env.CI_ORIGIN_SHA,CI_PUBLICATION_ENABLED:"true",CI_ENGINE_OPERATION:env.CI_DELIVERY_OPERATION});
   execute(options?entry.options_command:entry.command,child);
