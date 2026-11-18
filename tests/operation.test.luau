@@ -10,7 +10,6 @@ local function rejects(name: string, handler: () -> ())
 end
 local cfg = {
     version = 1,
-    triggers = { push = "review", pull_request = "review", workflow_dispatch = "review" },
     operations = {
         review = { mode = "readonly", events = { "push", "pull_request", "workflow_dispatch" },
             components = { "quality/*" } },
@@ -25,7 +24,7 @@ local cfg = {
     },
 }
 local context = { event = "pull_request", ref = "refs/pull/2/merge", defaultBranch = "main",
-    requested = "", confirmPublish = false }
+    requested = "review", confirmPublish = false }
 local review = Operation.Resolve(cfg, context)
 check("read-only PR routing", review.name == "review" and review.mode == "readonly")
 rejects("untrusted PR cannot invoke publishing", function()
@@ -49,11 +48,9 @@ end)
 rejects("no generated work on pull_request", function()
     local c = table.clone(trusted)
     c.event = "pull_request"
-    c.requested = ""
-    cfg.triggers.pull_request = "publish"
+    c.requested = "publish"
     Operation.Resolve(cfg, c)
 end)
-cfg.triggers.pull_request = "review"
 local manual = table.clone(trusted)
 manual.requested = "build"
 manual.confirmPublish = false
@@ -94,6 +91,14 @@ do
     c.requested = "review"
     check("caller may explicitly choose a permitted PR operation", Operation.Resolve(cfg, c).name == "review")
     check("explicit callers do not require a trigger map", Operation.Resolve({ version = 1, operations = cfg.operations }, c).name == "review")
+    rejects("operation is required", function()
+        local missing = table.clone(c)
+        missing.requested = ""
+        Operation.Resolve(cfg, missing)
+    end)
+    rejects("obsolete trigger catalog rejected", function()
+        Operation.Resolve({ version = 1, operations = cfg.operations, triggers = { pull_request = "review" } }, c)
+    end)
     local operation = {
         mode = "protected", events = { "repository_dispatch", "pull_request_target" },
         actions = { "retire", "closed" }, environment = "maintenance", components = { "maintenance/*" },

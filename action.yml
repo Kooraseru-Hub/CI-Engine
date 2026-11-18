@@ -3,8 +3,7 @@ description: Resolve or execute a project-defined CI operation
 inputs:
   operation:
     description: Consumer-defined operation selected by the caller
-    required: false
-    default: ""
+    required: true
   publish:
     description: Explicit manual publication confirmation
     required: false

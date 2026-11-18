@@ -10,7 +10,7 @@ A reusable, language-independent CI coordinator. Repositories own their operatio
 
 Consumers can pin Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml through one local workflow_call-only bootstrap reference, or call the external workflow directly. A local dependency provider may derive its exact revision from that reference. Group event entry points by consumer (push, pull request, manual, remote) and pass explicit operations and narrowly scoped permissions.
 
-The consumer declares operations (legacy trigger defaults remain available to direct runtime callers) in config/ci/operations.json (legacy engine.json paths are supported). Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
+The consumer declares operations in `config/ci/operations.json`. Every invocation explicitly selects an operation; event-to-operation routing belongs only to callers. Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
 
 Generated operations invoke a **repository-owned execution adapter** only after the engine's separate trusted job passes its event, default-branch and protected-environment checks. Such an adapter can compile GitHub-native workflow DAGs, dispatch them, verify completion, publish, manage generated branches, and clean up. The engine does not hardcode toolchains, publishers, phases, or repository names. A nonzero adapter exit fails the required final result.
 
@@ -68,7 +68,7 @@ GitHub supports action self-references such as `uses: $/`, but some current vers
 
 GitHub permissions are job-scoped. The single `Execute` job inherits the caller's explicitly declared permissions, allowing trusted callers to request `id-token: write` or other capabilities while PR review callers remain read-only; read-only components do **not** receive the OIDC token vending variables or bootstrap credentials in their subprocess environments. The job uses the separate `ci-readonly` environment for unprivileged execution and the selected protected environment for generated operations. External OIDC trusted-publisher registrations must trust only the protected publishing environment, never `ci-readonly`.
 
-The caller must not grant write permissions or OIDC to untrusted invocations. Use separate caller jobs if one event file groups events with different trust boundaries. The engine itself retains a single Execute job.
+The caller must not grant write permissions or OIDC to untrusted invocations. Use separate event workflows when event types require different permission ceilings; each event workflow calls the engine exactly once. The engine itself retains a single Execute job.
 
 
 ## Native source-push validation

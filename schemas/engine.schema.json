@@ -15,14 +15,6 @@
       "pattern": "^[a-zA-Z0-9_./-]+$",
       "description": "Repository-relative directory containing tracked component.json files"
     },
-    "triggers": {
-      "type": "object",
-      "description": "Optional legacy event default for direct runtime callers; workflow callers explicitly select an operation",
-      "additionalProperties": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
     "operations": {
       "type": "object",
       "minProperties": 1,

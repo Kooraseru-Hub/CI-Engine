@@ -1,10 +1,5 @@
 {
   "version": 1,
-  "triggers": {
-    "push": "build",
-    "pull_request": "review",
-    "workflow_dispatch": "review"
-  },
   "operations": {
     "review": {
       "mode": "readonly",

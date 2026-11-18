@@ -38,9 +38,7 @@ end
 
 local function main(): ()
     local phase = Process.env.CI_ENGINE_PHASE or "execute"
-    local defaultConfig = if Fs.exists("config/ci/operations.json") then "config/ci/operations.json"
-        elseif Fs.exists("config/ci/engine.json") then "config/ci/engine.json" else ".github/config/ci/engine.json"
-    local config = load(Process.env.CI_ENGINE_CONFIG or defaultConfig)
+    local config = load("config/ci/operations.json")
     local context = Operation.Context(Process.env)
     local route = Operation.Resolve(config, context)
     local expected = Process.env.CI_ENGINE_SELECTED_OPERATION

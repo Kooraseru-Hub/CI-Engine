@@ -1,11 +1,6 @@
 {
   "version": 1,
   "componentRoot": "tests/components",
-  "triggers": {
-    "push": "smoke",
-    "pull_request": "smoke",
-    "workflow_dispatch": "smoke"
-  },
   "operations": {
     "smoke": {
       "mode": "readonly",

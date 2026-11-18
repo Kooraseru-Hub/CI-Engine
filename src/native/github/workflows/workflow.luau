@@ -317,7 +317,7 @@ function Workflow.Bundle(tasks: { Contract.Task }, sourceSha: string, branch: st
 	}
 	local needs = { stage, "tests" }
 	if operation == "build" and event == "push" and Process.env.ACT ~= "true"
-		and Process.env.CI_PUBLICATION_ENABLED ~= "false" then
+		and Process.env.CI_PUBLICATION_ENABLED == "true" then
 		files["publish.yml"] = Workflow.Render(tasks, sourceSha, branch, event, "publish")
 		jobs.publish = { name = "Publish", needs = { stage, "tests" }, uses = "./.github/workflows/publish.yml",
 			permissions = { contents = "write", issues = "write", checks = "write", actions = "read", pages = "write", ["id-token"] = "write" },

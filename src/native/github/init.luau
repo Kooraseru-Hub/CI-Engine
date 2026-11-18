@@ -17,11 +17,12 @@ local GitHub = {}
 --- Validate hosted entry routes before resolving names or starting the selected run.
 local function hostedProfile(name: string): Configuration.Profile
 	local event = Process.env.GITHUB_EVENT_NAME
-	local source = Process.env.GITHUB_REF == "refs/heads/source"
+	local defaultBranch = Process.env.CI_DEFAULT_BRANCH
+	local source = defaultBranch ~= nil and defaultBranch ~= "" and Process.env.GITHUB_REF == `refs/heads/{defaultBranch}`
 	local allowed = if name == "source-ci"
 		then (source or Process.env.ACT == "true") and (event == "push" or event == "workflow_dispatch")
 		elseif name == "validate"
-			then event == "workflow_dispatch" or (event == "pull_request" and (Process.env.ACT == "true" or Process.env.GITHUB_BASE_REF == "source"))
+			then event == "workflow_dispatch" or (event == "pull_request" and (Process.env.ACT == "true" or Process.env.GITHUB_BASE_REF == defaultBranch))
 			else name == "remote-read" and source and event == "workflow_dispatch"
 
 	local profile = Configuration.new().profiles[name]

@@ -35,8 +35,8 @@ function Operation.Resolve(config: any, context: {
         fail("unsupported engine configuration version")
     end
     if type(config.operations) ~= "table" then fail("missing operations") end
-    local name = if context.requested ~= "" then context.requested
-        elseif type(config.triggers) == "table" then config.triggers[context.event] else nil
+    if config.triggers ~= nil then fail("event routing belongs to the caller, not the operation catalog") end
+    local name = context.requested
     if type(name) ~= "string" or not name:match("^[a-z][a-z0-9-]*$") then
         fail("no configured operation for event " .. context.event)
     end
