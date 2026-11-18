@@ -23,14 +23,13 @@ async function main() {
   } else if (command === "native" || command === "native-emit") {
     const target = command === "native" ? "entry.luau" : "bootstrap/emitWorkflows.luau";
     execute(process.execPath, [loader, "--exec", "luau.lute", "run", path.join(nativeRoot, target), ...args.slice(1)]);
-  } else if (command === "native-launch" || command === "component-script") {
+  } else if (command === "component-script") {
     const renderer = args[1];
     if (!renderer || !/^\.github\/components\/[a-zA-Z0-9/_-]+\.cjs$/.test(renderer)) throw new Error("Expected a repository-owned native renderer");
     const root = fs.realpathSync(path.join(process.cwd(), ".github/components"));
     const file = fs.realpathSync(path.resolve(renderer));
     if (!file.startsWith(root + path.sep)) throw new Error("Native renderer escapes the component directory");
-    if (command === "native-launch") await require("./src/native/github/workflows/launch.cjs").run(require(file).render);
-    else execute(process.execPath, [file, ...args.slice(2)]);
+    execute(process.execPath, [file, ...args.slice(2)]);
   } else if (command === "sync-inputs") {
     require("./src/adapters/local/inputs.cjs").syncInputs(process.cwd(), args.includes("--check"));
   } else {

@@ -1,6 +1,5 @@
 "use strict";
-// Create a build-only native pipeline from a trusted default-branch push.
-// Write credentials are never passed into the resulting workflow jobs.
+// Shared temporary-branch transport for explicitly generated deployments.
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const path = require("node:path");
@@ -8,25 +7,6 @@ const SHA=/^[0-9a-f]{40}$/;
 const REPO=/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const BRANCH=/^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-
-function context(env=process.env){
-  if(env.GITHUB_ACTIONS!=="true"||!["push","workflow_dispatch"].includes(env.GITHUB_EVENT_NAME)||
-    !env.CI_DEFAULT_BRANCH||!BRANCH.test(env.CI_DEFAULT_BRANCH)||
-    env.CI_DEFAULT_BRANCH.includes("..")||
-    env.GITHUB_REF!=="refs/heads/"+env.CI_DEFAULT_BRANCH){
-    throw new Error("Native generation requires a trusted default-branch push or manual validation dispatch");
-  }
-  if(!REPO.test(env.GITHUB_REPOSITORY||"")||!SHA.test(env.GITHUB_SHA||"")||
-     !/^[1-9]\d*$/.test(env.GITHUB_RUN_ID||"")||
-     !/^[1-9]\d*$/.test(env.GITHUB_RUN_ATTEMPT||"")){
-    throw new Error("Invalid native CI repository or run identity");
-  }
-  if(env.CI_NATIVE_PUBLISH==="true"||env.CI_PUBLICATION_ENABLED==="true"){
-    throw new Error("Native validation cannot publish");
-  }
-  return {repo:env.GITHUB_REPOSITORY,sha:env.GITHUB_SHA,
-    branch:"ci/run-push-"+env.GITHUB_RUN_ID+"-"+env.GITHUB_RUN_ATTEMPT+"-"+env.GITHUB_SHA.slice(0,10)};
-}
 
 async function api(method,resource,token,body,env=process.env){
   if(!token)throw new Error("Missing authenticated GitHub API token");
@@ -147,49 +127,4 @@ async function observe(ctx,commit,token,env=process.env,delay=sleep){
   throw new Error("Native build timed out"+(link?": "+link:""));
 }
 
-async function deleteBranch(ctx,token,env=process.env){
-  const ref="heads/"+ctx.branch;
-  // Never delete an unrelated ref, even if cleanup is called independently.
-  if(!/^ci\/run-push-[1-9]\d*-[1-9]\d*-[0-9a-f]{10}$/.test(ctx.branch)){
-    throw new Error("Refusing to delete a non-generated CI branch");
-  }
-  await api("DELETE","/repos/"+ctx.repo+"/git/refs/"+ref,token,undefined,env);
-  console.log("::notice::Deleted build-only branch "+ctx.branch);
-}
-
-async function run(renderer, env=process.env){
-  const ctx=context(env);
-  if (typeof renderer !== "function") throw new Error("A native workflow renderer is required");
-  const files=renderer(ctx.branch,ctx.sha,process.cwd(),"push");
-  for (const content of Object.values(files)) if (typeof content !== "string" || /publish:|pages: write|id-token: write|secrets: inherit|pull_request_target:/.test(content)) throw new Error("Unsafe privileged instruction in native build-only workflow");
-  // Validate the entire build-only graph before minting a write credential.
-  const token=await writerToken(ctx.repo,env);
-  const revision=await createBranch(ctx,files,token,env);
-  console.log("::notice::Created build-only branch "+ctx.branch);
-  let failure;
-  try{
-    const result=await observe(ctx,revision,env.CI_NATIVE_READ_TOKEN||token,env);
-    if(env.GITHUB_STEP_SUMMARY){
-      fs.appendFileSync(env.GITHUB_STEP_SUMMARY,
-        "\\n### Native build\\n\\nSource: "+ctx.sha+"\\nBranch: "+ctx.branch+
-        "\\nRun: "+result.link+"\\nPublication: disabled\\n");
-    }
-    console.log("::notice::Native pipeline passed: "+result.link);
-    return {...ctx,...result};
-  }catch(error){
-    failure=error;
-    throw error;
-  }finally{
-    try{
-      await deleteBranch(ctx,token,env);
-    }catch(error){
-      if(failure){
-        console.error("::error::Native branch cleanup also failed: "+String(error.message||error));
-      }else{
-        throw error;
-      }
-    }
-  }
-}
-module.exports={context,api,signJWT,requiredAppPermissions,writerToken,createBranch,observe,deleteBranch,run};
-if(require.main===module) { console.error("Use CI Engine native-launch with a project renderer"); process.exitCode=1; }
+module.exports={api,signJWT,requiredAppPermissions,writerToken,createBranch,observe};
