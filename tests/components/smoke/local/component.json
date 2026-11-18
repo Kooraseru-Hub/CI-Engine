@@ -9,6 +9,7 @@
     "--test",
     "tests/request.test.cjs",
     "tests/local-stage.test.cjs",
-    "tests/local-artifacts.test.cjs"
+    "tests/local-artifacts.test.cjs",
+    "tests/observe.test.cjs"
   ]
 }
