@@ -12,9 +12,9 @@ function archive(entries) {
 	return Buffer.concat([...blocks, Buffer.alloc(1024)]);
 }
 function bundle(root, runId, files) {
-	const runRoot = path.join(root, "build/run", runId), directory = path.join(runRoot, "transport/1/outputs-example"); fs.mkdirSync(directory, { recursive: true });
+	const runRoot = path.join(root, "build/run", runId), directory = path.join(runRoot, "transport/1/ci-native-bundles"); fs.mkdirSync(directory, { recursive: true });
 	const entries = Object.entries(files), manifest = { version: 1, runId, source: "a".repeat(40), operation: "build", phase: "build", component: "example", complete: true, outcome: "passed", files: entries.map(([name, bytes]) => ({ path: name, size: Buffer.byteLength(bytes), sha256: hash(Buffer.from(bytes)) })) };
-	fs.writeFileSync(path.join(directory, "outputs-example.zip"), zipSync({ "manifest.json": Buffer.from(JSON.stringify(manifest)), "outputs.tar": archive(entries) }));
+	fs.writeFileSync(path.join(directory, "ci-native-bundles.zip"), zipSync({ "example/manifest.json": Buffer.from(JSON.stringify(manifest)), "example/outputs.tar": archive(entries), "plan.json": Buffer.from(JSON.stringify([{identity:"example",phase:"build",outputs:["build/artifacts/**"]}])) }));
 	const expected = { runId, source: manifest.source, operation: "build", components: ["example"], tasks: [{ identity: "example", outputs: ["build/artifacts/**"] }] };
 	return { runRoot, expected };
 }
@@ -63,8 +63,8 @@ test("junction destinations cannot redirect promotion into local state", t => {
 
 test("tampered hashes and files outside a producer's declaration cannot be exported", t => {
 	const root = fixture(t), run = bundle(root, "run", { "build/artifacts/app.exe": "one" });
-	const zip = path.join(run.runRoot, "transport/1/outputs-example/outputs-example.zip"), contents = unzip(fs.readFileSync(zip));
-	const manifest = JSON.parse(Buffer.from(contents["manifest.json"]).toString("utf8")); manifest.files[0].sha256 = "0".repeat(64); contents["manifest.json"] = Buffer.from(JSON.stringify(manifest)); fs.writeFileSync(zip, zipSync(contents));
+	const zip = path.join(run.runRoot, "transport/1/ci-native-bundles/ci-native-bundles.zip"), contents = unzip(fs.readFileSync(zip));
+	const manifest = JSON.parse(Buffer.from(contents["example/manifest.json"]).toString("utf8")); manifest.files[0].sha256 = "0".repeat(64); contents["example/manifest.json"] = Buffer.from(JSON.stringify(manifest)); fs.writeFileSync(zip, zipSync(contents));
 	assert.throws(() => exportOutputs(run.runRoot, run.expected), /corrupt product/);
 	const other = bundle(root, "other", { "build/artifacts/app.exe": "one" });
 	assert.throws(() => exportOutputs(other.runRoot, { ...other.expected, tasks: [{ identity: "example", outputs: ["build/artifacts/different.exe"] }] }), /declared component/);

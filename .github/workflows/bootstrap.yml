@@ -320,6 +320,14 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 7
+      - name: Export local native build bundles
+        if: ${{ env.ACT == 'true' && needs.plan.outputs.host_artifact != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-native-bundles
+          path: build/run/${{ env.CI_LOCAL_RUN_ID }}/transport/bundles/
+          if-no-files-found: error
+          include-hidden-files: true
       - name: Upload native test artifacts
         if: ${{ needs.plan.outputs.host_tests == 'true' }}
         uses: actions/upload-artifact@v7

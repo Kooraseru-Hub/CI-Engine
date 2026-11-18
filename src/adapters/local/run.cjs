@@ -43,7 +43,7 @@ function options(args) {
 	const route = config.operations?.[operation];
 	if (!route) throw new Error("Unknown CI operation: " + operation);
 	if (!route.events.includes(event || "workflow_dispatch")) throw new Error("Operation unavailable for this event: " + operation);
-	if (route.publication || route.mode === "protected") throw new Error("Protected or publishing operations cannot run locally");
+	if (route.publication || route.mode !== "readonly") throw new Error("Protected or publishing operations cannot run locally");
 	return { informational, operation, event: event || "workflow_dispatch", args: event ? args : ["workflow_dispatch", ...args] };
 }
 // Translate external file arguments before running act in the isolated checkout.
@@ -150,47 +150,27 @@ async function main(args = process.argv.slice(2)) {
 		const config = JSON.parse(fs.readFileSync(path.join(root, "config/ci/operations.json"), "utf8"));
 		const route = config.operations[selected.operation];
 		const authored = ["--workflows", ".github/workflows/_act-entry.yml"];
-		if (route.mode === "readonly") {
-			failureStage = "validation";
-			record.stages.start = "not required";
-			record.stages[selected.operation] = "running";
+		failureStage = selected.operation;
+		record.stages.start = "not required";
+		record.stages[selected.operation] = "running";
+		publish();
+		await execute([...hostedArgs(), ...authored, ...runtimeArgs], worktree, "execution.log");
+		record.stages[selected.operation] = "passed";
+		if (route.hostTests) {
+			failureStage = "export";
+			record.stages.export = "running";
 			publish();
-			await execute([...hostedArgs(), ...authored, ...runtimeArgs], worktree, "execution.log");
-			record.stages[selected.operation] = "passed";
-			record.state = "passed";
-			record.exitCode = 0;
-			record.reports = record.runDirectory + "/execution.log";
-			console.log("Completed " + selected.operation + ": " + record.reports);
-			return 0;
+			const tasks = artifacts.readBuildPlan(runRoot);
+			const manifest = artifacts.exportOutputs(runRoot, {runId,source,workspaceDigest,operation:selected.operation,components:tasks.map(task=>task.identity),tasks});
+			artifacts.promote(root,runRoot,manifest);
+			record.stages.export="passed";
+			record.artifacts=record.runDirectory+"/outputs";
+			record.manifest=record.artifacts+"/manifest.json";
 		}
-		await execute([...hostedArgs(), ...authored, ...runtimeArgs], worktree, "start.log");
-		record.stages.start = "passed";
-		if (selected.operation !== "readiness") {
-			const generated = artifacts.receiveStart(runRoot);
-			const plan = JSON.parse(fs.readFileSync(path.join(generated, "plan.json"), "utf8"));
-			failureStage = selected.operation; record.stages[selected.operation] = "running"; publish();
-			for (const entry of fs.readdirSync(generated)) if (entry.endsWith(".yml")) {
-				const file = path.join(worktree, ".github/workflows", entry);
-				fs.writeFileSync(file, fs.readFileSync(path.join(generated, entry), "utf8").replaceAll("actions/upload-artifact@v7", "actions/upload-artifact@v4").replaceAll("actions/download-artifact@v8", "actions/download-artifact@v4"));
-			}
-			execFileSync("git", ["add", "-A"], { cwd: worktree, windowsHide: true, stdio: "pipe" });
-			// Preserve the caller's platform/offline/container flags. Event, input and workflow selection belong to Start.
-			const executionArgs = [];
-			const excluded = new Set(["-W", "--workflows", "--input", "--input-file", "-e", "--eventpath", "-j", "--job", "--artifact-server-path", "--artifact-server-port"]);
-			for (let i = 0; i < args.length; i++) { if (excluded.has(args[i])) { i++; continue; } if (/^(push|pull_request|workflow_dispatch)$/.test(args[i]) || /^--(input(?:-file)?|workflows|eventpath|artifact-server-path|artifact-server-port)=/.test(args[i])) continue; executionArgs.push(args[i]); }
-			await execute(["push", "--eventpath", path.join(generated, "event.json"), "--workflows", ".github/workflows/pipeline.yml", ...executionArgs, ...runtimeArgs], worktree, "execution.log");
-			record.stages[selected.operation] = "passed";
-			artifacts.receiveDiagnostics(runRoot);
-			record.reports = record.runDirectory + "/" + selected.operation;
-			failureStage = "export"; record.stages.export = "running"; publish();
-			const tasks = plan.filter(task => task.phase === "build");
-			const manifest = artifacts.exportOutputs(runRoot, { runId, source, workspaceDigest, operation: selected.operation, components: tasks.map(task => task.identity), tasks });
-			artifacts.promote(root, runRoot, manifest);
-			record.stages.export = "passed";
-			record.artifacts = record.runDirectory + "/outputs"; record.manifest = record.artifacts + "/manifest.json";
-		} else record.stages.readiness = "passed";
-		record.state = "passed"; record.exitCode = 0;
-		console.log(`Completed ${selected.operation}; readable outputs: ${record.artifacts || record.runDirectory}`);
+		record.state = "passed";
+		record.exitCode = 0;
+		record.reports = record.runDirectory + "/execution.log";
+		console.log("Completed " + selected.operation + ": " + record.reports);
 	} catch (error) {
 		try { artifacts.receiveDiagnostics(runRoot); } catch (failure) { record.diagnosticsFailure = failure.message.slice(0, 500); }
 		for (const stage of Object.keys(record.stages)) if (record.stages[stage] === "pending") record.stages[stage] = "blocked";

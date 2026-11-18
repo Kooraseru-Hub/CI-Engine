@@ -7,10 +7,8 @@ local Reporter = require("@self/outcomes/reporter")
 local Discovery = require("@self/discovery")
 local Planner = require("@self/planning")
 local Contract = require("@self/contracts/contract")
-local BranchRun = require("@ci/github/resources/branches/branchRun")
 local Credentials = require("@ci/github/authentication/credentials")
 local TaskRunner = require("@ci/github/workflows/taskRunner")
-local Publication = require("@ci/github/publication")
 
 local Configuration = require("@ci/github/configuration")
 
@@ -82,21 +80,8 @@ function Bootstrap.Run(self: Bootstrap, component: string?, reportOnly: boolean?
 	if self.profile then
 		restriction = if profileName == "source-ci" then "source-ci" else "validate"
 	end
-	if Process.env.ACT == "true" and Process.env.CI_GRAPH_RUN ~= "true" then
-		if BranchRun.TryLaunch(tasks, self.event, self.credentials) then return end
-	end
-	if restriction ~= "validate" and (not self.profile or self.profile.delegate) then
-		if restriction == "source-ci" and not (Process.env.ACT == "true") then
-			if not BranchRun.TryLaunch(tasks, self.event, self.credentials) then
-				error("Source CI delegation is unavailable; privileged components cannot execute in Bootstrap", 0)
-			end
-			Publication.Output("delegated", "true")
-			return
-		elseif BranchRun.TryLaunch(tasks, self.event, self.credentials) then
-			Publication.Output("delegated", "true")
-			return
-		end
-	end
+	-- The native runner never dispatches another workflow.
+	restriction = "validate"
 	local result = self.executor:Execute(tasks, self.event, restriction)
 	self.reporter:Report(result.outcomes, #tasks, nil, restriction ~= nil)
 	if not result.passed then

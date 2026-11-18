@@ -87,12 +87,6 @@ function walk(root) {
 	}
 	return result;
 }
-function receiveStart(runRoot) {
-	const archives = walk(path.join(runRoot, "transport")).filter(file => path.basename(file) === "start.zip");
-	if (archives.length !== 1) throw new Error("Expected exactly one Start artifact");
-	for (const [name, bytes] of Object.entries(unzip(fs.readFileSync(archives[0])))) if (!name.endsWith("/")) write(path.join(runRoot, "start"), name, bytes);
-	return path.join(runRoot, "start/workflows");
-}
 function receiveDiagnostics(runRoot) {
 	for (const archive of walk(path.join(runRoot, "transport")).filter(file => file.endsWith(".zip"))) {
 		const name = path.basename(archive, ".zip");
@@ -107,16 +101,28 @@ function receiveDiagnostics(runRoot) {
 		}
 	}
 }
+function combinedBundle(runRoot) {
+	const matches=walk(path.join(runRoot,"transport")).filter(file=>path.basename(file)==="ci-native-bundles.zip");
+	if(matches.length!==1)throw new Error("Expected exactly one native build artifact");
+	return unzip(fs.readFileSync(matches[0]));
+}
+function readBuildPlan(runRoot) {
+	const contents=combinedBundle(runRoot);
+	const tasks=JSON.parse(Buffer.from(contents["plan.json"]||[]).toString("utf8"));
+	if(!Array.isArray(tasks)||!tasks.length||tasks.some(task=>typeof task.identity!=="string"||task.phase!=="build"||!Array.isArray(task.outputs)))throw new Error("Invalid local build plan");
+	return tasks;
+}
 function exportOutputs(runRoot, expected) {
 	const directory = path.join(runRoot, "outputs"); fs.mkdirSync(directory, { recursive: true });
 	const files = [], components = [], owned = new Set();
-	for (const archive of walk(path.join(runRoot, "transport")).filter(file => path.basename(file).startsWith("outputs-") && file.endsWith(".zip"))) {
-		const contents = unzip(fs.readFileSync(archive));
-		const manifest = JSON.parse(Buffer.from(contents["manifest.json"] || []).toString("utf8"));
+	const contents=combinedBundle(runRoot);
+	for (const name of Object.keys(contents).filter(file=>/^[A-Za-z0-9_-]+\/manifest\.json$/.test(file))) {
+		const prefix=name.slice(0,-"manifest.json".length);
+		const manifest = JSON.parse(Buffer.from(contents[name] || []).toString("utf8"));
 		if (manifest.version !== 1 || !manifest.complete || !["passed", "skipped"].includes(manifest.outcome) || manifest.runId !== expected.runId || manifest.source !== expected.source || (expected.workspaceDigest && manifest.workspaceDigest !== expected.workspaceDigest) || manifest.operation !== expected.operation || manifest.phase !== "build" || !Array.isArray(manifest.files)) throw new Error("Output provenance mismatch");
 		const task = expected.tasks?.find(task => task.identity === manifest.component);
 		if (expected.tasks && !task) throw new Error("Unknown producing component");
-		const data = tar(Buffer.from(contents["outputs.tar"] || []));
+		const data = tar(Buffer.from(contents[prefix+"outputs.tar"] || []));
 		if (data.size !== manifest.files.length) throw new Error("Manifest does not cover every TAR file");
 		for (const item of manifest.files) {
 			product(item.path); if (task && !task.outputs.some(pattern => path.posix.matchesGlob(item.path, pattern))) throw new Error("File outside declared component outputs"); const key = item.path.toLowerCase(), bytes = data.get(item.path);
@@ -186,4 +192,4 @@ function snapshot(root) {
 	const digest = hash(Buffer.concat(files.flatMap(([name, bytes]) => [Buffer.from(name + "\0"), bytes || Buffer.from("deleted"), Buffer.from("\0")])));
 	return { tracked, files, digest };
 }
-module.exports = { receiveDiagnostics, snapshot, relative, target, unzip, tar, receiveStart, exportOutputs, promote, hash };
+module.exports = { receiveDiagnostics, snapshot, relative, target, unzip, tar, readBuildPlan, exportOutputs, promote, hash };

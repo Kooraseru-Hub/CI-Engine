@@ -2,6 +2,7 @@
 --!strict
 
 local Fs = require("@std/fs")
+local Json = require("@formats/json")
 local Process = require("@lute/process")
 local Bootstrap = require("@ci/bootstrap")
 local Configuration = require("@ci/github/configuration")
@@ -97,6 +98,9 @@ function Stages.Run(phase: string, event: string): ()
 				error(`Unable to stage publication record for {task.identity}`, 0)
 			end
 		end
+	end
+	if phase == "build" and Process.env.ACT == "true" then
+		Fs.writeStringToFile(Artifacts.Transport() .. "/plan.json", Json.encode(selected))
 	end
 	print(`::notice::{phase} completed {#selected} components`)
 end

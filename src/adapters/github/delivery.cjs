@@ -113,7 +113,7 @@ function run(env=process.env,options=false){
   }
   if(entry.bindings.some(b=>b.role.startsWith("CI_CREDENTIAL_"))) child.CI_CREDENTIAL_ENVIRONMENT=entry.environment;
   // The native adapter's contract is immutable across build and publication.
-  Object.assign(child,{CI_EVENT:"push",CI_OPERATION:"validation",CI_PHASE:"publish",CI_GRAPH_RUN:"true",CI_SOURCE_SHA:env.CI_ORIGIN_SHA,CI_PUBLICATION_ENABLED:"true",CI_ENGINE_OPERATION:env.CI_DELIVERY_OPERATION});
+  Object.assign(child,{CI_EVENT:"push",CI_OPERATION:env.CI_DELIVERY_OPERATION,CI_PHASE:"publish",CI_GRAPH_RUN:"true",CI_SOURCE_SHA:env.CI_ORIGIN_SHA,CI_PUBLICATION_ENABLED:"true",CI_ENGINE_OPERATION:env.CI_DELIVERY_OPERATION});
   execute(options?entry.options_command:entry.command,child);
 }
 module.exports={normalize,trusted,safePath};

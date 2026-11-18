@@ -8,7 +8,8 @@ local runners = {
     ["windows-11-arm"] = true, ["windows-11-vs2026-arm"] = true,
 }
 function HostTests.Plan(spec: any, localExecution: boolean?): (string, string, string)
-    if spec == nil or localExecution then return "false", '{"include":[]}', "" end
+    if spec == nil then return "false", '{"include":[]}', "" end
+    if localExecution then return "false", '{"include":[]}', spec.artifactPath end
     if type(spec) ~= "table" or type(spec.command) ~= "table"
         or type(spec.artifactPath) ~= "string" or not Component.ValidRoot(spec.artifactPath)
         or spec.artifactPath:sub(1, 6) ~= "build/" then

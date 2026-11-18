@@ -64,14 +64,15 @@ async function observe(phase, runID, env, api = resource => get(resource,env), d
       const key=phase.toLowerCase();
       const exact=jobs.filter(job => typeof job.name==="string" && job.name.split(" / ").at(-1).toLowerCase() === key);
       const group=jobs.filter(job => typeof job.name==="string" && job.name.split(" / ").at(-1).toLowerCase().startsWith(key+" ("));
+      const activeGroup=group.filter(job=>!(job.conclusion==="skipped"&&job.name.includes("matrix.id")));
       if(exact.length>1 || (exact.length && group.length)) throw new Error("Ambiguous CI phase: "+phase);
       const job=exact[0];
       if (job?.status==="completed") return {conclusion:job.conclusion || "unknown",job_id:String(job.id)};
       // The Validate gate is authoritative. Matrix groups are stable once the
       // workflow reaches Collect; before that the API may still be materializing jobs.
-      if(group.length && group.every(job=>job.status==="completed") &&
+      if(activeGroup.length && activeGroup.every(job=>job.status==="completed") &&
          (run.status==="completed" || jobs.some(job=>job.name.split(" / ").at(-1)==="Collect" && job.status !== "queued"))) {
-        return {conclusion:group.every(job=>job.conclusion==="success")?"success":"failure",job_ids:JSON.stringify(group.map(job=>job.id))};
+        return {conclusion:activeGroup.every(job=>job.conclusion==="success")?"success":"failure",job_ids:JSON.stringify(activeGroup.map(job=>job.id))};
       }
       if (run.status==="completed") throw new Error("CI finished before reaching "+phase+": "+run.conclusion);
     }

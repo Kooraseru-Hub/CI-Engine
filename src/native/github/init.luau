@@ -6,7 +6,6 @@ local Bootstrap = require("@ci/bootstrap")
 local Stages = require("@ci/bootstrap/stages")
 local Process = require("@lute/process")
 local Credentials = require("@ci/github/authentication/credentials")
-local BranchRun = require("@ci/github/resources/branches/branchRun")
 local PagesDeployment = require("@ci/github/publication/pagesDeployment")
 local Attestations = require("@ci/github/publication/attestations")
 local Publication = require("@ci/github/publication")
@@ -40,7 +39,6 @@ function GitHub.Run(): ()
 	local reportOnly = argument == "--report"
 	local credentialProvider = argument == "--credential-provider"
 	local credentialNames = argument == "--credential-names"
-	local cleanupBranch = argument == "--cleanup-branch"
 	local pagesOptions = argument == "--pages-options"
 	local attestationOptions = argument == "--attestation-options"
 	local attestationReport = argument == "--attestation-report"
@@ -54,7 +52,6 @@ function GitHub.Run(): ()
 		and not reportOnly
 		and not credentialProvider
 		and not credentialNames
-		and not cleanupBranch
 		and not pagesOptions
 		and not attestationOptions
 		and not attestationReport
@@ -62,7 +59,7 @@ function GitHub.Run(): ()
 		and not stageReport
 	then
 		error(
-			"expected --stage <build|publish>, --stage-report, --component <identity>, --report, --credential-names, --credential-provider, --profile-check, --cleanup-branch, --pages-options, --attestation-options, --attestation-report, or no arguments",
+			"expected --stage <build|publish>, --stage-report, --component <identity>, --report, --credential-names, --credential-provider, --profile-check, --pages-options, --attestation-options, --attestation-report, or no arguments",
 			0
 		)
 	end
@@ -113,10 +110,6 @@ function GitHub.Run(): ()
 				and Process.env.GITHUB_EVENT_NAME == "workflow_dispatch"))
 			or (argument ~= nil and not (profileName == "source-ci" and (stage == "publish" or stageReport)))) then
 			error("Invalid entry command or event for the selected CI profile", 0)
-		end
-		if cleanupBranch then
-			BranchRun.Cleanup()
-			return true
 		end
 		if attestationOptions then
 			Attestations.Options()

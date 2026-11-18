@@ -121,6 +121,7 @@ local function main(): ()
     local components = Discovery.Load(root)
     local plan = Graph.Plan(components, route.operation.components, context.event, if route.mode == "staged" then "readonly" else route.mode)
     print("CI Engine: " .. route.name .. " (" .. context.event .. "), " .. #plan.ordered .. " component(s)")
+    Process.env.CI_ENGINE_MODE = route.mode
     Components.Run(plan.ordered, components)
     print("CI Engine: operation completed successfully")
 end
