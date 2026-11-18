@@ -132,7 +132,7 @@ local expected: { [string]: { string } } = {
 local labels: { [string]: string } = {
     resolve = "Resolve", prepare = "Prepare", discover = "Discover",
     inspect = "Inspect", plan = "Plan", authorize = "Authorize",
-    execute = "Execute", test = "Test (${{ matrix.id }})", publish_contents = "Publish (contents: ${{ matrix.id }})", publish_issues = "Publish (issues: ${{ matrix.id }})", publish_credential = "Publish (credential: ${{ matrix.id }})", publish_pages = "Publish (pages: ${{ matrix.id }})", publish_external = "Publish (external: ${{ matrix.id }})", report = "Collect", cleanup = "Cleanup",
+    execute = "Execute", test = "Test (${{ matrix.id }})", publish_contents = "Publish (contents - ${{ matrix.id }})", publish_issues = "Publish (issues - ${{ matrix.id }})", publish_credential = "Publish (credential - ${{ matrix.id }})", publish_pages = "Publish (pages - ${{ matrix.id }})", publish_external = "Publish (external - ${{ matrix.id }})", report = "Collect", cleanup = "Cleanup",
     validate = "validate",
 }
 local found: { [string]: { string } } = {}
