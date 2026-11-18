@@ -120,14 +120,19 @@ local expected: { [string]: { string } } = {
     authorize = { "resolve", "plan", "inspect" },
     execute = { "resolve", "prepare", "plan", "authorize" },
     test = { "execute", "plan" },
-    report = { "execute", "plan", "test" },
+    publish_contents = { "resolve", "plan", "authorize", "execute", "test" },
+    publish_issues = { "resolve", "plan", "authorize", "execute", "test" },
+    publish_credential = { "resolve", "plan", "authorize", "execute", "test" },
+    publish_pages = { "resolve", "plan", "authorize", "execute", "test" },
+    publish_external = { "resolve", "plan", "authorize", "execute", "test" },
+    report = { "execute", "plan", "test", "publish_contents", "publish_issues", "publish_credential", "publish_pages", "publish_external" },
     cleanup = { "report" },
     validate = { "resolve", "cleanup" },
 }
 local labels: { [string]: string } = {
     resolve = "Resolve", prepare = "Prepare", discover = "Discover",
     inspect = "Inspect", plan = "Plan", authorize = "Authorize",
-    execute = "Execute", test = "Test (${{ matrix.id }})", report = "Collect", cleanup = "Cleanup",
+    execute = "Execute", test = "Test (${{ matrix.id }})", publish_contents = "Publish (${{ matrix.id }})", publish_issues = "Publish (${{ matrix.id }})", publish_credential = "Publish (${{ matrix.id }})", publish_pages = "Publish (${{ matrix.id }})", publish_external = "Publish (${{ matrix.id }})", report = "Collect", cleanup = "Cleanup",
     validate = "validate",
 }
 local found: { [string]: { string } } = {}
@@ -137,7 +142,7 @@ local current: string? = nil
 for line in workflow:gmatch("[^\r\n]+") do
     if line == "jobs:" then inside = true end
     if inside then
-        local header = line:match("^  ([a-z]+):$")
+        local header = line:match("^  ([a-z_]+):$")
         if header then
             if expected[header] == nil then error("unexpected controller job " .. header, 0) end
             if found[header] ~= nil then error("duplicate controller job " .. header, 0) end
@@ -147,12 +152,12 @@ for line in workflow:gmatch("[^\r\n]+") do
             local raw = line:match("^    needs: (.+)$")
             if raw then
                 local values: { string } = {}
-                for dependency in raw:gmatch("[a-z]+") do table.insert(values, dependency) end
+                for dependency in raw:gmatch("[a-z_]+") do table.insert(values, dependency) end
                 found[current] = values
             end
             local label = line:match("^    name: (.+)$")
             if label then names[current] = label end
-            if line:match("^    if:") and current ~= "test" and current ~= "report" and current ~= "cleanup" and current ~= "validate" then
+            if line:match("^    if:") and current ~= "test" and not current:find("^publish_") and current ~= "report" and current ~= "cleanup" and current ~= "validate" then
                 error("controller stage is conditionally skipped: " .. current, 0)
             end
         end
@@ -185,12 +190,11 @@ end
 check("exactly one controller entry point", roots == 1)
 check("controller converges before Execute", #found.authorize == 3
     and #found.execute == 4)
-check("protected operations execute within ordinary Execute", workflow:find("phase: protected", 1, true) ~= nil)
 check("engine has no provider-specific dispatch", workflow:find("cloudflare", 1, true) == nil)
-check("protected components have explicit scoped bindings", workflow:find("CI_COMPONENT_CREDENTIALS", 1, true) ~= nil)
-local execution = workflow:match("\n  execute:\n(.-)\n  report:") or ""
+check("no generated adapter", workflow:find("Execute trusted generated adapter", 1, true) == nil)
+check("no blanket secret transport", workflow:find("CI_COMPONENT_CREDENTIALS", 1, true) == nil)
+local execution = workflow:match("\n  execute:\n(.-)\n  test:") or ""
 check("Execute explicitly restricts its repository token", execution:find("contents: read", 1, true) ~= nil and execution:find("checks: write", 1, true) == nil)
-check("only protected component execution receives caller GitHub token", execution:find("CI_COMPONENT_GITHUB_TOKEN", 1, true) ~= nil)
 local protectedPlan = Graph.Plan({ ["test/publish"] = privileged }, { "*" }, "repository_dispatch", "protected")
 check("protected component uses normal dependency planner", #protectedPlan.ordered == 1)
 

@@ -1,92 +1,21 @@
 # CI Engine
 
-A reusable, language-independent CI coordinator. Repositories own their operations, component manifests, toolchains, and publishing adapters. The engine owns GitHub workflow admission, operation resolution, dependency planning, execution boundaries, and the final result.
+A reusable CI execution framework with an independent dispatch run. Consumers own event admission, operation declarations, and components. The engine owns scheduling, permission enforcement, artifacts, and terminal status.
 
-## Entry points
+## Execution
 
-- **.github/workflows/bootstrap.yml** – a reusable workflow_call entry point, not a second manually runnable workflow
-- **action.yml** – an independently usable composite action supporting resolve, prepare, discover, inspect, plan, authorize, execute and generated phases
-- **src/** – the generic Lute runtime, without requiring a Node controller or any particular project language
+One immutable request selects one operation from `config/ci/operations.json`. The workflow resolves and prepares it, discovers components, inspects the requested trust boundary, plans, authorizes, executes, tests, optionally publishes, collects, cleans up, and reports status. No hosted execution builds a temporary workflow or branch.
 
-Consumers can pin Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml through one local workflow_call-only bootstrap reference, or call the external workflow directly. A local dependency provider may derive its exact revision from that reference. Group event entry points by consumer (push, pull request, manual, remote) and pass explicit operations and narrowly scoped permissions.
+Read-only operations declare component patterns and optional `hostTests`. Native test matrices consume artifacts from the same run. Staged operations additionally declare `publication: true` and a `delivery.command` which writes a JSON plan to `CI_DELIVERY_PLAN_FILE`. Staged delivery requires an explicitly confirmed, admitted default-branch manual dispatch. Build and native tests must succeed first. Local execution cannot publish.
 
-The consumer declares operations in `config/ci/operations.json`. Every invocation explicitly selects an operation; event-to-operation routing belongs only to callers. Read-only operations discover tracked component manifests, validate contracts, resolve capability dependencies, reject cycles and output collisions, then execute command arrays. Dependency providers execute before their consumers.
+## Delivery contract
 
-Generated operations invoke a **repository-owned execution adapter** only after the engine's separate trusted job passes its event, default-branch and protected-environment checks. Such an adapter can compile GitHub-native workflow DAGs, dispatch them, verify completion, publish, manage generated branches, and clean up. The engine does not hardcode toolchains, publishers, phases, or repository names. A nonzero adapter exit fails the required final result.
+The plan declares `jobs` with an identity, permission lane, environment, command argument vector, optional nonsecret environment, and up to three explicit named credential bindings. It may also declare an artifact source/destination and a read-only candidate preparation command. The supported static permission lanes are contents, issues, credential, pages, and external (PR comment authority). Pages uses job-scoped OIDC; credential values never enter the plan or artifacts. Candidate code is compiled without publishing credentials and the publisher runs on a fresh immutable trusted checkout. The native planner derives publication jobs from component contracts and configured native permissions.
 
-The reusable workflow has a **single entry point** and a fork-and-join DAG. Prepare, Discover, and Inspect run in parallel after Resolve. Plan depends on Discover; Authorize joins Plan and Inspect; Execute joins Prepare and Authorize. The remainder converges through Collect, Cleanup and validate.
+## Optional observation API
 
-```mermaid
-flowchart LR
-    R["Resolve"] --> P["Prepare"]
-    R --> D["Discover"]
-    R --> I["Inspect"]
-    D --> L["Plan"]
-    L --> A["Authorize"]
-    I --> A
-    P --> E["Execute"]
-    A --> E
-    E --> C["Collect"]
-    C --> K["Cleanup"]
-    K --> V["validate"]
-```
+The event-side client at the pinned engine revision exposes `connect`, `status <run-id>`, and `wait <run-id> [phase]`. Consumers may await any phase or the overall terminal result without subscribing to intermediate phases. Signals observe same-run jobs; subscriptions do not alter execution or permissions.
 
-All jobs have short labels and run on successful operations: read-only, protected, or generated execution is a choice *inside* Execute, not two mutually skipped jobs. Inspect validates the execution boundary independently of component discovery. Prepare verifies the checked-out workspace; it **does not** install tools into Execute's separate runner. Consumer dependency installation remains component-owned until an explicit cache/artifact transport is needed. The engine does not automatically transfer filesystem state between jobs.
+## Local execution
 
-GitHub cannot insert new native jobs into an active workflow run. A project-owned generated pipeline must use a separate dispatched workflow or supported external backend.
-
-## Protected components
-
-Protected event work is an ordinary operation with mode `protected`, an explicit event allowlist, optional `actions`, a protected environment, and component selectors. The normal Resolve, Prepare, Discover, Inspect, Plan, Authorize, Execute, Collect, Cleanup and validate graph applies. There is no event-specific lifecycle job or publisher in the engine.
-
-The engine permits protected work only from a hosted default-branch checkout; ordinary pull_request and local act runs cannot execute it. Entry points own event filters and payload-specific policy (for example, same-repository PR closures). Components must validate any untrusted event payload before acting.
-
-The protected Execute step receives an explicitly provided JSON secret `component_credentials` (or environment secret `CI_COMPONENT_CREDENTIALS`) and optional `component_variables` input (or environment variable `CI_COMPONENT_VARIABLES`). Keys are lowercase aliases; only a privileged component's declared bindings are passed as uppercase environment variables, and secret values are masked. The reserved `gh_token` alias uses the calling job's GitHub token, permitting bot-owned comment operations without exposing it to read-only component subprocesses. Configure environment protections in the consumer. No provider-specific credentials or bulk secrets context is collected.
-
-## Credentials and trust
-
-Untrusted pull requests cannot request a generated operation, and never enter the privileged job. Read-only jobs have contents: read and no publisher credentials. The caller sets the Execute permission ceiling; protected invocations select an explicit protected GitHub environment, and optional app_private_key / bootstrap_token secret inputs alongside vars.CI_APP_ID.
-
-Manual publication additionally requires explicit confirmation. Real package or extension registry OIDC trust must be registered at the external publisher; the engine cannot bypass GitHub's environment protections or manufacture that trust.
-
-Cross-owner workflows should use explicitly mapped secret inputs rather than assume secrets: inherit works everywhere. Template's permanent launcher maps conventional CI_APP_PRIVATE_KEY and CI_TOKEN repository secrets. Consumer credentials must be configured in GitHub, not committed.
-
-Pin external reusable workflow references to full commit SHAs. The engine owns its action dependencies in its own .github/workflows/actions.lock; a consumer action lock does not pin external reusable workflow calls.
-
-## Verification
-
-The engine's own fixtures exercise the reusable-workflow path, component contracts, dependency planning, and positive/negative operation routing, independently of Template. Its first-pass read-only implementation was extended with a generic trusted generated-operation adapter; project-specific publishers remain outside the engine.
-
-This branch is an integration candidate, not a tagged v1 release. Passing engine and consumer CI verifies workflow admission and unprivileged execution but does not prove live publication to external registries.
-
-
-## Local act compatibility
-
-GitHub supports action self-references such as `uses: $/`, but some current versions of `act` do not. A consumer's local-only launcher may stage a temporary copy of the exact pinned reusable workflow and translate those self-references to `Kooraseru-Hub/CI-Engine@<sha>`. This must happen only inside a disposable checkout; do not edit the hosted engine workflow or replace `$/` with a moving branch ref.
-
-## Credential boundary for a universal graph
-
-GitHub permissions are job-scoped. The single `Execute` job inherits the caller's explicitly declared permissions, allowing trusted callers to request `id-token: write` or other capabilities while PR review callers remain read-only; read-only components do **not** receive the OIDC token vending variables or bootstrap credentials in their subprocess environments. The job uses the separate `ci-readonly` environment for unprivileged execution and the selected protected environment for generated operations. External OIDC trusted-publisher registrations must trust only the protected publishing environment, never `ci-readonly`.
-
-The caller must not grant write permissions or OIDC to untrusted invocations. Use separate event workflows when event types require different permission ceilings; each event workflow calls the engine exactly once. The engine itself retains a single Execute job.
-
-
-## Native validation
-
-The optional read-only operation `hostTests` declaration selects an artifact directory and a command emitting the host-test inventory. Plan validates the matrix, Execute uploads its compiled binaries once, and same-run Test jobs download and verify the outputs on hosted Windows runners. Collect requires all configured tests to succeed before reporting the required check. No generated validation workflows, temporary branches or write credentials are required for validation. Local execution skips hosted Windows runners but retains cross-compilation and universal tests.
-
-## Managed local package
-
-Install the exact workflow commit through the consumer's dependency provider. The CLI stages the installed package and the consumer's authored workflows in an isolated checkout; it does not fetch its own source. `node cli.cjs run validation` selects manual validation. `node cli.cjs sync-inputs` regenerates the manual operation choices from configuration; `--check` verifies that they agree. Local runs never authorize publication or protected operations. Some hosted capabilities, including native Windows runners, still require real GitHub verification.
-
-## Native adapter
-
-The native adapter (`src/native/`) owns discovery of Luau component contracts, dependency planning, native job compilation, credential selection, GitHub resource reconciliation, temporary branches, artifact transport and consumer test execution. Installed consumers invoke it using the managed CLI: `native`, `native-validate`, `native-test`, `native-lint`, `native-logged`, `component-script <entry>`. The consumer owns its component implementations, native graph renderer (if needed), and configuration. The adapter's working directory must be the consumer workspace. Retain the pin-only bootstrap declaration on explicitly generated deployment branches, removing event callers.
-
-## Event dispatch
-
-Consumers may invoke the engine from an independent `repository_dispatch` workflow. Admission validates immutable source identity against GitHub before checkout, while the execution jobs receive a read-only repository token. For PRs the engine creates and completes its required check on the requested head SHA; the trusted check writer never runs consumer commands. Local execution stages the same dispatch workflow and simulates admission without contacting GitHub.
-
-### Observation API
-
-The event-side client (`src/adapters/github/observe.cjs`) exposes independent, optional read-only accessors. Load the client at the consumer's authoritative engine pin. `connect` correlates a request using `REQUEST_ID`, `REQUEST_SHA` and `CI_OPERATION` and exports `run_id` and `run_url`. `status <run-id>` returns a snapshot of the workflow and currently visible phases without waiting. `wait <run-id> [phase]` blocks until the selected phase completes, or until the whole workflow completes if no phase is supplied; a non-success conclusion fails the command. Phase names are case-insensitive and do not require prior subscriptions. Every phase executes independently of observers. Most consumers need only connect and terminal wait. A consumer may opt into any intermediate phase to attach its own work; observation is not a gate and does not authorize access to additional credentials.
+The managed CLI stages the pinned engine for act and simulates dispatch admission locally. It executes the same read-only graph, omitting hosted Windows runners. Native build bundles include a verified build plan and provenance; the adapter exports manifest-owned products only after successful execution. No deployment or remote branch generation occurs locally.

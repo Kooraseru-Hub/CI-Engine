@@ -7,6 +7,12 @@ jobs:
     name: CI Engine
     uses: Kooraseru-Hub/CI-Engine/.github/workflows/bootstrap.yml@PIN_ENGINE_COMMIT_SHA
     permissions:
-      contents: read
+      contents: write
+      actions: read
+      checks: write
+      pull-requests: write
+      issues: write
+      pages: write
+      id-token: write
     with:
       operation: smoke
