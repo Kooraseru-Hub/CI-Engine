@@ -51,7 +51,7 @@ async function admit(env = process.env, requestApi = api) {
   if (!local && env.CI_DISPATCH_SENDER !== "github-actions[bot]") throw new Error("Only repository event dispatchers may submit engine requests");
   if (r.operation !== env.CI_DISPATCH_OPERATION || String(r.publish) !== env.CI_DISPATCH_PUBLISH)
     throw new Error("Request and invocation differ");
-  let checkout = r.sha, check = "";
+  let checkout = r.sha, check = "", review_pr = "";
   if (!local) {
     if (!REPO.test(env.GITHUB_REPOSITORY || "")) throw new Error("Invalid repository");
     const base = "/repos/" + env.GITHUB_REPOSITORY;
@@ -60,6 +60,8 @@ async function admit(env = process.env, requestApi = api) {
       if (pr.state !== "open" || pr.head.sha !== r.sha || pr.base.repo.full_name !== env.GITHUB_REPOSITORY
           || pr.base.ref !== env.CI_DEFAULT_BRANCH || r.ref !== "refs/heads/" + pr.head.ref)
         throw new Error("Stale or invalid PR request");
+      // Only same-repository PRs may request trusted review delivery.
+      if (pr.head.repo?.full_name === env.GITHUB_REPOSITORY) review_pr = String(r.pr);
       // Validate the exact head. The fork is reachable via the base repository's PR ref.
       const result = await requestApi("POST", base + "/check-runs", {
         name:CHECK, head_sha:r.sha, status:"in_progress",
@@ -77,7 +79,7 @@ async function admit(env = process.env, requestApi = api) {
   }
   return {event:r.event, ref:r.ref, sha:r.sha, checkout:local ? "" : checkout,
     action:r.event === "repository_dispatch" ? "ci-validation" : "", trusted:r.trusted && !local,
-    check, inputs:JSON.stringify(r.inputs || {})};
+    check, review_pr, inputs:JSON.stringify(r.inputs || {})};
 }
 async function finish(env = process.env, requestApi = api) {
   if (!env.CI_CHECK_ID) return;

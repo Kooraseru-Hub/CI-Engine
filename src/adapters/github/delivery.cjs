@@ -16,7 +16,7 @@ function vector(value){
 function map(value={}){
   if(!value||typeof value!=="object"||Array.isArray(value))throw Error("Invalid delivery environment");
   for(const [k,v] of Object.entries(value)){
-    if(!NAME.test(k)||typeof v!=="string"||/[\0\r\n]/.test(v)||/^(GITHUB_|ACTIONS_|RUNNER_|GH_TOKEN$|PATH$|NODE_OPTIONS$|CI_ORIGIN_|CI_DELIVERY_|CI_CREDENTIAL_|CI_PUBLICATION_)/.test(k))throw Error("Invalid delivery environment binding");
+    if(!NAME.test(k)||typeof v!=="string"||/[\0\r\n]/.test(v)||/^(GITHUB_|ACTIONS_|RUNNER_|GH_TOKEN$|PATH$|NODE_OPTIONS$|CI_ORIGIN_|CI_REVIEW_|CI_DELIVERY_|CI_CREDENTIAL_|CI_PUBLICATION_)/.test(k))throw Error("Invalid delivery environment binding");
   }
   return value;
 }
@@ -26,6 +26,27 @@ function trusted(env){
     env.CI_ORIGIN_EVENT!=="workflow_dispatch"||!SHA.test(env.CI_ORIGIN_SHA||"")||
     env.CI_ORIGIN_SHA!==env.GITHUB_SHA||
     env.CI_ORIGIN_REF!=="refs/heads/"+env.CI_DEFAULT_BRANCH)throw Error("Delivery requires confirmed trusted default-branch admission");
+}
+// Review delivery is a separate, opt-in authority. It cannot enable normal publication.
+function reviewTrusted(env){
+  if(env.ACT==="true"||env.GITHUB_ACTIONS!=="true"||env.GITHUB_EVENT_NAME!=="repository_dispatch"||
+    env.CI_ORIGIN_EVENT!=="pull_request"||env.CI_ORIGIN_TRUSTED!=="false"||
+    env.CI_DELIVERY_CONFIRM!=="false"||!SHA.test(env.CI_ORIGIN_SHA||"")||
+    !/^[1-9][0-9]*$/.test(env.CI_REVIEW_PR||"")||
+    !env.CI_DEFAULT_BRANCH||env.GITHUB_REF!=="refs/heads/"+env.CI_DEFAULT_BRANCH)
+    throw Error("Review delivery requires admitted same-repository PR and trusted controller");
+}
+function normalizeReview(raw,env){
+  reviewTrusted(env);
+  const plan=normalize(raw);
+  if(plan.jobs.length!==1||plan.jobs[0].lane!=="external"||!plan.prepare||
+    plan.prepare.ref!==env.CI_ORIGIN_SHA||!plan.artifact||!plan.destination)
+    throw Error("Review delivery requires one isolated external static-artifact job");
+  return plan;
+}
+function authorizeDelivery(env){
+  if(env.CI_ORIGIN_EVENT==="pull_request")reviewTrusted(env);
+  else trusted(env);
 }
 function normalize(raw){
   if(!raw||typeof raw!=="object"||!Array.isArray(raw.jobs)||raw.jobs.length<1||raw.jobs.length>64)throw Error("Invalid delivery plan");
@@ -72,16 +93,30 @@ function execute(command,env,cwd=process.cwd(),capture=false){
   return result.stdout;
 }
 function planner(env=process.env){
-  trusted(env);
-  const config=JSON.parse(fs.readFileSync("config/ci/operations.json","utf8"));
-  const route=config.operations?.[env.CI_DELIVERY_OPERATION];
-  if(route?.mode!=="staged"||route.publication!==true)throw Error("Expected a staged publication operation");
+  authorizeDelivery(env);
+  const review=env.CI_ORIGIN_EVENT==="pull_request";
+  let command;
+  if(review){
+    // This file and its executable are read only from the trusted controller checkout.
+    const file="config/ci/review-delivery.json";
+    if(!fs.existsSync(file))return;
+    const route=JSON.parse(fs.readFileSync(file,"utf8"));
+    if(route.operation!==env.CI_DELIVERY_OPERATION)return;
+    command=vector(route.command);
+  }else{
+    const config=JSON.parse(fs.readFileSync("config/ci/operations.json","utf8"));
+    const route=config.operations?.[env.CI_DELIVERY_OPERATION];
+    if(route?.mode!=="staged"||route.publication!==true)throw Error("Expected a staged publication operation");
+    command=route.delivery.command;
+  }
   const directory=fs.mkdtempSync(path.join(require("node:os").tmpdir(),"ci-delivery-"));
   let plan;
   try {
     const file=path.join(directory,"plan.json");
-    execute(route.delivery.command,{...env,CI_DELIVERY_PLAN_FILE:file});
-    plan=normalize(JSON.parse(fs.readFileSync(file,"utf8")));
+    execute(command,{...env,CI_DELIVERY_PLAN_FILE:file});
+    const raw=JSON.parse(fs.readFileSync(file,"utf8"));
+    if(review&&Array.isArray(raw.jobs)&&raw.jobs.length===0)return;
+    plan=review?normalizeReview(raw,env):normalize(raw);
   } finally { fs.rmSync(directory,{recursive:true,force:true}); }
   output("artifact",plan.artifact,env);output("destination",plan.destination,env);
   output("prepare_ref",plan.prepare?.ref||"",env);
@@ -92,19 +127,20 @@ function planner(env=process.env){
   }
 }
 function prepare(env=process.env){
-  trusted(env);
+  authorizeDelivery(env);
   const command=vector(JSON.parse(env.CI_DELIVERY_PREPARE_COMMAND)), bindings=map(JSON.parse(env.CI_DELIVERY_PREPARE_ENV));
   const child={...env,...bindings};
   for(const name of Object.keys(child))if(/^(GH_TOKEN$|GITHUB_TOKEN$|ACTIONS_ID_TOKEN_|CI_CREDENTIAL_|CI_SLOT_|CI_COMPONENT_CREDENTIALS|CI_NATIVE_)/.test(name))delete child[name];
   execute(command,child,path.resolve("build/ci-candidate"));
 }
 function run(env=process.env,options=false){
-  trusted(env);
+  authorizeDelivery(env);
   const raw=JSON.parse(env.CI_DELIVERY_ENTRY);
   // Matrix entries already contain empty placeholders; remove them before revalidation.
   const entry=normalize({jobs:[{...raw,bindings:raw.bindings.filter(b=>b.name),
     ...(raw.lane==="pages"?{}:{options_command:undefined,pages_path:undefined})}]}).jobs[0];
   if(entry.lane!==env.CI_DELIVERY_LANE)throw Error("Delivery permission lane mismatch");
+  if(env.CI_ORIGIN_EVENT==="pull_request"&&(entry.lane!=="external"||options))throw Error("Review delivery permits only external publication");
   const child={...env,...entry.env};
   for(let i=0;i<3;i++){
     const b=entry.bindings[i];const value=env["CI_SLOT_"+i];
@@ -120,7 +156,7 @@ function run(env=process.env,options=false){
   Object.assign(child,{CI_EVENT:"push",CI_OPERATION:env.CI_DELIVERY_OPERATION,CI_PHASE:"publish",CI_GRAPH_RUN:"true",CI_SOURCE_SHA:env.CI_ORIGIN_SHA,CI_PUBLICATION_ENABLED:"true",CI_ENGINE_OPERATION:env.CI_DELIVERY_OPERATION});
   execute(options?entry.options_command:entry.command,child);
 }
-module.exports={normalize,trusted,safePath};
+module.exports={normalize,trusted,reviewTrusted,normalizeReview,safePath};
 if(require.main===module)try{
   const command=process.argv[2];
   if(command==="delivery-plan")planner();

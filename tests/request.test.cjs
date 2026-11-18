@@ -5,9 +5,9 @@ const sha="a".repeat(40), env={CI_DEFAULT_BRANCH:"source",GITHUB_REPOSITORY:"org
 const req={event:"pull_request",ref:"refs/heads/topic",sha,operation:"review",pr:7,publish:false};
 test("PR admission resolves immutable untrusted SHA and creates a scoped check",async()=>{
  const calls=[];
- const api=async(method,path,body)=>{calls.push([method,path,body]);return method==="POST"?{id:42}:{state:"open",head:{sha,ref:"topic"},base:{repo:{full_name:"org/repo"},ref:"source"}}};
+ const api=async(method,path,body)=>{calls.push([method,path,body]);return method==="POST"?{id:42}:{state:"open",head:{sha,ref:"topic",repo:{full_name:"org/repo"}},base:{repo:{full_name:"org/repo"},ref:"source"}}};
  const result=await admit({...env,CI_DISPATCH_REQUEST:JSON.stringify(req)},api);
- assert.equal(result.checkout,sha);assert.equal(result.trusted,false);assert.equal(result.check,"42");
+ assert.equal(result.checkout,sha);assert.equal(result.trusted,false);assert.equal(result.check,"42");assert.equal(result.review_pr,"7");
  assert.equal(calls[1][2].head_sha,sha);
 });
 test("rejects spoofed sender, stale PR and publication",async()=>{
@@ -22,4 +22,9 @@ test("status reports only for its own engine invocation",async()=>{
  await finish({...env,CI_CHECK_ID:"42",CI_CHECK_RESULT:"success"},api);
  assert.equal(calls[1][2].conclusion,"success");
  await assert.rejects(finish({...env,CI_CHECK_ID:"42"},async()=>({external_id:"ci-engine:456"})),/another invocation/);
+});
+
+test("fork PRs never receive review delivery authority",async()=>{
+ const result=await admit({...env,CI_DISPATCH_REQUEST:JSON.stringify(req)},async(method)=>method==="POST"?{id:42}:{state:"open",head:{sha,ref:"topic",repo:{full_name:"other/repo"}},base:{repo:{full_name:"org/repo"},ref:"source"}});
+ assert.equal(result.review_pr,"");assert.equal(result.trusted,false);
 });

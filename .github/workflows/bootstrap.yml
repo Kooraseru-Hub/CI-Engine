@@ -36,6 +36,7 @@ jobs:
       checkout: ${{ steps.admit.outputs.checkout }}
       action: ${{ steps.admit.outputs.action }}
       trusted: ${{ steps.admit.outputs.trusted }}
+      review_pr: ${{ steps.admit.outputs.review_pr }}
       check: ${{ steps.admit.outputs.check }}
       inputs: ${{ steps.admit.outputs.inputs }}
       operation: ${{ steps.route.outputs.operation }}
@@ -166,21 +167,21 @@ jobs:
       host_tests: ${{ steps.plan.outputs.host_tests }}
       host_matrix: ${{ steps.plan.outputs.host_matrix }}
       host_artifact: ${{ steps.plan.outputs.host_artifact }}
-      delivery_artifact: ${{ steps.delivery.outputs.delivery_artifact }}
-      delivery_destination: ${{ steps.delivery.outputs.delivery_destination }}
-      delivery_prepare_ref: ${{ steps.delivery.outputs.delivery_prepare_ref }}
-      delivery_prepare_command: ${{ steps.delivery.outputs.delivery_prepare_command }}
-      delivery_prepare_env: ${{ steps.delivery.outputs.delivery_prepare_env }}
-      delivery_contents: ${{ steps.delivery.outputs.delivery_contents }}
-      delivery_issues: ${{ steps.delivery.outputs.delivery_issues }}
-      delivery_credential: ${{ steps.delivery.outputs.delivery_credential }}
-      delivery_pages: ${{ steps.delivery.outputs.delivery_pages }}
-      delivery_external: ${{ steps.delivery.outputs.delivery_external }}
-      delivery_has_contents: ${{ steps.delivery.outputs.delivery_has_contents }}
-      delivery_has_issues: ${{ steps.delivery.outputs.delivery_has_issues }}
-      delivery_has_credential: ${{ steps.delivery.outputs.delivery_has_credential }}
-      delivery_has_pages: ${{ steps.delivery.outputs.delivery_has_pages }}
-      delivery_has_external: ${{ steps.delivery.outputs.delivery_has_external }}
+      delivery_artifact: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_artifact || steps.delivery.outputs.delivery_artifact }}
+      delivery_destination: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_destination || steps.delivery.outputs.delivery_destination }}
+      delivery_prepare_ref: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_prepare_ref || steps.delivery.outputs.delivery_prepare_ref }}
+      delivery_prepare_command: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_prepare_command || steps.delivery.outputs.delivery_prepare_command }}
+      delivery_prepare_env: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_prepare_env || steps.delivery.outputs.delivery_prepare_env }}
+      delivery_contents: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_contents || steps.delivery.outputs.delivery_contents }}
+      delivery_issues: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_issues || steps.delivery.outputs.delivery_issues }}
+      delivery_credential: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_credential || steps.delivery.outputs.delivery_credential }}
+      delivery_pages: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_pages || steps.delivery.outputs.delivery_pages }}
+      delivery_external: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_external || steps.delivery.outputs.delivery_external }}
+      delivery_has_contents: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_has_contents || steps.delivery.outputs.delivery_has_contents }}
+      delivery_has_issues: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_has_issues || steps.delivery.outputs.delivery_has_issues }}
+      delivery_has_credential: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_has_credential || steps.delivery.outputs.delivery_has_credential }}
+      delivery_has_pages: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_has_pages || steps.delivery.outputs.delivery_has_pages }}
+      delivery_has_external: ${{ needs.resolve.outputs.event == 'pull_request' && steps.review_delivery.outputs.delivery_has_external || steps.delivery.outputs.delivery_has_external }}
     env:
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
@@ -193,6 +194,25 @@ jobs:
       contents: read
       pull-requests: read
     steps:
+      - name: Checkout trusted review delivery configuration
+        if: ${{ needs.resolve.outputs.review_pr != '' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Resolve authorized review delivery
+        id: review_delivery
+        if: ${{ needs.resolve.outputs.review_pr != '' }}
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_REVIEW_PR: ${{ needs.resolve.outputs.review_pr }}
+          CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: delivery-plan
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
       - name: Checkout consumer
         uses: actions/checkout@v7
         with:
@@ -293,18 +313,19 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Checkout isolated delivery candidate
-        if: ${{ needs.resolve.outputs.trusted == 'true' && needs.plan.outputs.delivery_prepare_ref != '' }}
+        if: ${{ (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_prepare_ref != '' }}
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.delivery_prepare_ref }}
           path: build/ci-candidate
           persist-credentials: false
       - name: Prepare isolated delivery artifact
-        if: ${{ needs.resolve.outputs.trusted == 'true' && needs.plan.outputs.delivery_prepare_ref != '' }}
+        if: ${{ (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_prepare_ref != '' }}
         uses: $/
         env:
           CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_REVIEW_PR: ${{ needs.resolve.outputs.review_pr }}
           CI_DELIVERY_PREPARE_COMMAND: ${{ needs.plan.outputs.delivery_prepare_command }}
           CI_DELIVERY_PREPARE_ENV: ${{ needs.plan.outputs.delivery_prepare_env }}
         with:
@@ -312,7 +333,7 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Preserve verified delivery inputs
-        if: ${{ needs.resolve.outputs.trusted == 'true' && needs.plan.outputs.delivery_artifact != '' }}
+        if: ${{ (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_artifact != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: ci-delivery-input
@@ -625,7 +646,7 @@ jobs:
   publish_external:
     name: Publish (external - ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
-    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_external == 'true' }}
+    if: ${{ !cancelled() && needs.authorize.result == 'success' && ((needs.resolve.outputs.trusted == 'true' && needs.authorize.outputs.mode == 'staged' && inputs.publish) || (needs.resolve.outputs.review_pr != '' && needs.resolve.outputs.event == 'pull_request' && needs.authorize.outputs.mode == 'readonly' && !inputs.publish)) && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_external == 'true' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.delivery_external || '{"include":[]}') }}
@@ -646,13 +667,14 @@ jobs:
       CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
       CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
       CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CI_REVIEW_PR: ${{ needs.resolve.outputs.review_pr }}
       CI_DELIVERY_LANE: external
       CI_DELIVERY_ENTRY: ${{ toJSON(matrix) }}
     steps:
       - name: Checkout immutable trusted publisher
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.resolve.outputs.checkout }}
+          ref: ${{ needs.resolve.outputs.event == 'pull_request' && github.sha || needs.resolve.outputs.checkout }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7.1.0

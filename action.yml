@@ -35,6 +35,9 @@ outputs:
   trusted:
     description: Admission trusted
     value: ${{ steps.admission.outputs.trusted }}
+  review_pr:
+    description: Admitted same-repository PR number (empty for forks)
+    value: ${{ steps.admission.outputs.review_pr }}
   check:
     description: Admission check
     value: ${{ steps.admission.outputs.check }}
