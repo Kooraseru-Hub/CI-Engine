@@ -20,8 +20,8 @@ async function main() {
   };
   if (Object.hasOwn(scripts, command)) {
     execute("bash", [path.join(nativeRoot, scripts[command]), ...args.slice(1)]);
-  } else if (command === "native" || command === "native-emit") {
-    const target = command === "native" ? "entry.luau" : "bootstrap/emitWorkflows.luau";
+  } else if (command === "native" || command === "native-plan") {
+    const target = command === "native" ? "entry.luau" : "bootstrap/deliveryPlan.luau";
     execute(process.execPath, [loader, "--exec", "luau.lute", "run", path.join(nativeRoot, target), ...args.slice(1)]);
   } else if (command === "component-script") {
     const renderer = args[1];

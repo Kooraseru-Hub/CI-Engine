@@ -182,6 +182,21 @@ jobs:
       host_tests: ${{ steps.plan.outputs.host_tests }}
       host_matrix: ${{ steps.plan.outputs.host_matrix }}
       host_artifact: ${{ steps.plan.outputs.host_artifact }}
+      delivery_artifact: ${{ steps.delivery.outputs.delivery_artifact }}
+      delivery_destination: ${{ steps.delivery.outputs.delivery_destination }}
+      delivery_prepare_ref: ${{ steps.delivery.outputs.delivery_prepare_ref }}
+      delivery_prepare_command: ${{ steps.delivery.outputs.delivery_prepare_command }}
+      delivery_prepare_env: ${{ steps.delivery.outputs.delivery_prepare_env }}
+      delivery_contents: ${{ steps.delivery.outputs.delivery_contents }}
+      delivery_issues: ${{ steps.delivery.outputs.delivery_issues }}
+      delivery_credential: ${{ steps.delivery.outputs.delivery_credential }}
+      delivery_pages: ${{ steps.delivery.outputs.delivery_pages }}
+      delivery_external: ${{ steps.delivery.outputs.delivery_external }}
+      delivery_has_contents: ${{ steps.delivery.outputs.delivery_has_contents }}
+      delivery_has_issues: ${{ steps.delivery.outputs.delivery_has_issues }}
+      delivery_has_credential: ${{ steps.delivery.outputs.delivery_has_credential }}
+      delivery_has_pages: ${{ steps.delivery.outputs.delivery_has_pages }}
+      delivery_has_external: ${{ steps.delivery.outputs.delivery_has_external }}
     env:
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
@@ -205,6 +220,24 @@ jobs:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         with:
           phase: plan
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+      - name: Set up delivery planner runtime
+        if: ${{ needs.resolve.outputs.mode == 'staged' && needs.resolve.outputs.trusted == 'true' }}
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Resolve staged delivery
+        id: delivery
+        if: ${{ needs.resolve.outputs.mode == 'staged' && needs.resolve.outputs.trusted == 'true' }}
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: delivery-plan
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
 
@@ -257,7 +290,7 @@ jobs:
       contents: read
       actions: read
     environment:
-      name: ${{ (needs.authorize.outputs.mode == 'protected' || needs.authorize.outputs.mode == 'generated') && needs.authorize.outputs.environment || 'ci-readonly' }}
+      name: ${{ needs.authorize.outputs.mode == 'protected' && needs.authorize.outputs.environment || 'ci-readonly' }}
       deployment: false
     steps:
       - name: Checkout consumer
@@ -267,28 +300,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Execute read-only components
-        if: ${{ needs.authorize.outputs.mode == 'readonly' }}
+        if: ${{ (needs.authorize.outputs.mode == 'readonly' || needs.authorize.outputs.mode == 'staged') }}
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
         with:
           phase: execute
-          operation: ${{ inputs.operation }}
-          publish: ${{ inputs.publish }}
-      - name: Execute trusted generated adapter
-        if: ${{ needs.authorize.outputs.mode == 'generated' && (env.ACT == 'true' || needs.resolve.outputs.trusted == 'true') }}
-        uses: $/
-        env:
-          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
-          CI_CREDENTIAL_ENVIRONMENT: ${{ needs.authorize.outputs.environment }}
-          CI_CREDENTIAL_APP_ID: ${{ vars.CI_APP_ID }}
-          CI_CREDENTIAL_APP_PRIVATE_KEY: ${{ secrets.app_private_key }}
-          CI_CREDENTIAL_BOOTSTRAP_TOKEN: ${{ secrets.bootstrap_token }}
-          GH_TOKEN: ${{ github.token }}
-        with:
-          phase: generated
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Execute protected components
@@ -304,6 +322,34 @@ jobs:
           phase: protected
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
+      - name: Checkout isolated delivery candidate
+        if: ${{ needs.resolve.outputs.trusted == 'true' && needs.plan.outputs.delivery_prepare_ref != '' }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.delivery_prepare_ref }}
+          path: build/ci-candidate
+          persist-credentials: false
+      - name: Prepare isolated delivery artifact
+        if: ${{ needs.resolve.outputs.trusted == 'true' && needs.plan.outputs.delivery_prepare_ref != '' }}
+        uses: $/
+        env:
+          CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_DELIVERY_PREPARE_COMMAND: ${{ needs.plan.outputs.delivery_prepare_command }}
+          CI_DELIVERY_PREPARE_ENV: ${{ needs.plan.outputs.delivery_prepare_env }}
+        with:
+          phase: delivery-prepare
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+      - name: Preserve verified delivery inputs
+        if: ${{ needs.resolve.outputs.trusted == 'true' && needs.plan.outputs.delivery_artifact != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-delivery-input
+          path: ${{ needs.plan.outputs.delivery_artifact }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
       - name: Upload native test artifacts
         if: ${{ needs.plan.outputs.host_tests == 'true' }}
         uses: actions/upload-artifact@v7
@@ -328,21 +374,7 @@ jobs:
           path: build/rules-audit/
           if-no-files-found: ignore
           retention-days: 7
-      - name: Export local generated plan
-        if: ${{ env.ACT == 'true' && needs.authorize.outputs.mode == 'generated' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: start
-          path: build/run/${{ env.CI_LOCAL_RUN_ID }}/start/
-          if-no-files-found: error
-      - name: Preserve generated execution results
-        if: ${{ always() && needs.authorize.outputs.mode == 'generated' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: generated-execution
-          path: build/run/
-          if-no-files-found: ignore
-          retention-days: 3
+
 
   test:
     name: Test (${{ matrix.id }})
@@ -376,9 +408,296 @@ jobs:
             if ($lines -notcontains $line) { throw "Expected output missing: $line" }
           }
 
+  publish_contents:
+    name: Publish (${{ matrix.id }})
+    needs: [resolve, plan, authorize, execute, test]
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_contents == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.delivery_contents || '{"include":[]}') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+    environment:
+      name: ${{ matrix.environment }}
+      deployment: false
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
+      CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
+      CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CI_DELIVERY_LANE: contents
+      CI_DELIVERY_ENTRY: ${{ toJSON(matrix) }}
+    steps:
+      - name: Checkout immutable trusted publisher
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.checkout }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Receive same-run delivery inputs
+        if: ${{ needs.plan.outputs.delivery_destination != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-delivery-input
+          path: ${{ needs.plan.outputs.delivery_destination }}
+      - name: Execute authorized publisher
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
+          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
+          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+        with:
+          phase: delivery-run
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  publish_issues:
+    name: Publish (${{ matrix.id }})
+    needs: [resolve, plan, authorize, execute, test]
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_issues == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.delivery_issues || '{"include":[]}') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    environment:
+      name: ${{ matrix.environment }}
+      deployment: false
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
+      CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
+      CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CI_DELIVERY_LANE: issues
+      CI_DELIVERY_ENTRY: ${{ toJSON(matrix) }}
+    steps:
+      - name: Checkout immutable trusted publisher
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.checkout }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Receive same-run delivery inputs
+        if: ${{ needs.plan.outputs.delivery_destination != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-delivery-input
+          path: ${{ needs.plan.outputs.delivery_destination }}
+      - name: Execute authorized publisher
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
+          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
+          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+        with:
+          phase: delivery-run
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  publish_credential:
+    name: Publish (${{ matrix.id }})
+    needs: [resolve, plan, authorize, execute, test]
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_credential == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.delivery_credential || '{"include":[]}') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+    environment:
+      name: ${{ matrix.environment }}
+      deployment: false
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
+      CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
+      CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CI_DELIVERY_LANE: credential
+      CI_DELIVERY_ENTRY: ${{ toJSON(matrix) }}
+    steps:
+      - name: Checkout immutable trusted publisher
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.checkout }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Receive same-run delivery inputs
+        if: ${{ needs.plan.outputs.delivery_destination != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-delivery-input
+          path: ${{ needs.plan.outputs.delivery_destination }}
+      - name: Execute authorized publisher
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
+          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
+          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+        with:
+          phase: delivery-run
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
+  publish_pages:
+    name: Publish (${{ matrix.id }})
+    needs: [resolve, plan, authorize, execute, test]
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_pages == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.delivery_pages || '{"include":[]}') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: ${{ matrix.environment }}
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
+      CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
+      CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CI_DELIVERY_LANE: pages
+      CI_DELIVERY_ENTRY: ${{ toJSON(matrix) }}
+    steps:
+      - name: Checkout immutable trusted publisher
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.checkout }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Receive same-run delivery inputs
+        if: ${{ needs.plan.outputs.delivery_destination != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-delivery-input
+          path: ${{ needs.plan.outputs.delivery_destination }}
+      - name: Execute authorized publisher
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
+          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
+          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+        with:
+          phase: delivery-run
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+      - name: Resolve deployment artifact
+        id: options
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          phase: delivery-options
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+      - name: Upload Pages artifact
+        if: ${{ steps.options.outputs.delivery_enabled == 'true' }}
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ matrix.pages_path }}
+      - name: Deploy Pages
+        id: deployment
+        if: ${{ steps.options.outputs.delivery_enabled == 'true' }}
+        uses: actions/deploy-pages@v4
+
+  publish_external:
+    name: Publish (${{ matrix.id }})
+    needs: [resolve, plan, authorize, execute, test]
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_external == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.delivery_external || '{"include":[]}') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    environment:
+      name: ${{ matrix.environment }}
+      deployment: false
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
+      CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
+      CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      CI_DELIVERY_LANE: external
+      CI_DELIVERY_ENTRY: ${{ toJSON(matrix) }}
+    steps:
+      - name: Checkout immutable trusted publisher
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.checkout }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Receive same-run delivery inputs
+        if: ${{ needs.plan.outputs.delivery_destination != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ci-delivery-input
+          path: ${{ needs.plan.outputs.delivery_destination }}
+      - name: Execute authorized publisher
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
+          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
+          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+        with:
+          phase: delivery-run
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
+
   report:
     name: Collect
-    needs: [execute, plan, test]
+    needs: [execute, plan, test, publish_contents, publish_issues, publish_credential, publish_pages, publish_external]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -389,6 +708,16 @@ jobs:
           EXECUTION_RESULT: ${{ needs.execute.result }}
           HOST_TESTS: ${{ needs.plan.outputs.host_tests }}
           HOST_RESULT: ${{ needs.test.result }}
+          CONTENTS_REQUIRED: ${{ needs.plan.outputs.delivery_has_contents }}
+          CONTENTS_RESULT: ${{ needs.publish_contents.result }}
+          ISSUES_REQUIRED: ${{ needs.plan.outputs.delivery_has_issues }}
+          ISSUES_RESULT: ${{ needs.publish_issues.result }}
+          CREDENTIAL_REQUIRED: ${{ needs.plan.outputs.delivery_has_credential }}
+          CREDENTIAL_RESULT: ${{ needs.publish_credential.result }}
+          PAGES_REQUIRED: ${{ needs.plan.outputs.delivery_has_pages }}
+          PAGES_RESULT: ${{ needs.publish_pages.result }}
+          EXTERNAL_REQUIRED: ${{ needs.plan.outputs.delivery_has_external }}
+          EXTERNAL_RESULT: ${{ needs.publish_external.result }}
         run: |
           set -euo pipefail
           {
@@ -396,10 +725,15 @@ jobs:
             echo ""
             echo "Execution result: **$EXECUTION_RESULT**"
             echo ""
-            echo "Project diagnostics and generated-run artifacts are attached to the execution job."
+            echo "Project diagnostics and delivery inputs are attached to this run."
           } >> "$GITHUB_STEP_SUMMARY"
           test "$EXECUTION_RESULT" = success
           if [[ "$HOST_TESTS" == true ]]; then test "$HOST_RESULT" = success; fi
+          if [[ "$CONTENTS_REQUIRED" == true ]]; then test "$CONTENTS_RESULT" = success; fi
+          if [[ "$ISSUES_REQUIRED" == true ]]; then test "$ISSUES_RESULT" = success; fi
+          if [[ "$CREDENTIAL_REQUIRED" == true ]]; then test "$CREDENTIAL_RESULT" = success; fi
+          if [[ "$PAGES_REQUIRED" == true ]]; then test "$PAGES_RESULT" = success; fi
+          if [[ "$EXTERNAL_REQUIRED" == true ]]; then test "$EXTERNAL_RESULT" = success; fi
 
   cleanup:
     name: Cleanup
@@ -415,7 +749,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "CI Engine: runner workspaces are ephemeral."
-          echo "CI Engine: the generated execution adapter owns cleanup of its remote branches and artifacts."
+          echo "CI Engine: no temporary execution branches were created."
           test "$REPORT_RESULT" = success
 
   validate:

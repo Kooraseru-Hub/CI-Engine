@@ -76,7 +76,13 @@ function planner(env=process.env){
   const config=JSON.parse(fs.readFileSync("config/ci/operations.json","utf8"));
   const route=config.operations?.[env.CI_DELIVERY_OPERATION];
   if(route?.mode!=="staged"||route.publication!==true)throw Error("Expected a staged publication operation");
-  const plan=normalize(JSON.parse(execute(route.delivery.command,env,process.cwd(),true)));
+  const directory=fs.mkdtempSync(path.join(require("node:os").tmpdir(),"ci-delivery-"));
+  let plan;
+  try {
+    const file=path.join(directory,"plan.json");
+    execute(route.delivery.command,{...env,CI_DELIVERY_PLAN_FILE:file});
+    plan=normalize(JSON.parse(fs.readFileSync(file,"utf8")));
+  } finally { fs.rmSync(directory,{recursive:true,force:true}); }
   output("artifact",plan.artifact,env);output("destination",plan.destination,env);
   output("prepare_ref",plan.prepare?.ref||"",env);
   output("prepare_command",plan.prepare?.command||[],env);output("prepare_env",plan.prepare?.env||{},env);
@@ -105,6 +111,7 @@ function run(env=process.env,options=false){
     if(b.role&&value)child[b.role]=value;
     delete child["CI_SLOT_"+i];
   }
+  if(entry.bindings.some(b=>b.role.startsWith("CI_CREDENTIAL_"))) child.CI_CREDENTIAL_ENVIRONMENT=entry.environment;
   // The native adapter's contract is immutable across build and publication.
   Object.assign(child,{CI_EVENT:"push",CI_OPERATION:"validation",CI_PHASE:"publish",CI_GRAPH_RUN:"true",CI_SOURCE_SHA:env.CI_ORIGIN_SHA,CI_PUBLICATION_ENABLED:"true",CI_ENGINE_OPERATION:env.CI_DELIVERY_OPERATION});
   execute(options?entry.options_command:entry.command,child);

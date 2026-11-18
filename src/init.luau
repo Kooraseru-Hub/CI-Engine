@@ -108,7 +108,7 @@ local function main(): ()
         if route.mode ~= "readonly" then
             if not context.localExecution and Process.env.CI_ORIGIN_TRUSTED ~= "true" then fail("privileged work requires trusted admission") end
             if not context.localExecution and (context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch) then
-                fail("untrusted event cannot authorize generated execution")
+                fail("untrusted event cannot authorize privileged execution")
             end
             print("CI Engine: trusted execution authorized for environment " .. route.environment)
         else
@@ -130,7 +130,7 @@ local function main(): ()
     local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
     if type(root) ~= "string" or not Component.ValidRoot(root) then fail("unsafe component root") end
     local components = Discovery.Load(root)
-    local plan = Graph.Plan(components, route.operation.components, context.event, route.mode)
+    local plan = Graph.Plan(components, route.operation.components, context.event, if route.mode == "staged" then "readonly" else route.mode)
     print("CI Engine: " .. route.name .. " (" .. context.event .. "), " .. #plan.ordered .. " component(s)")
     Components.Run(plan.ordered, components, phase == "protected")
     print("CI Engine: operation completed successfully")

@@ -160,22 +160,26 @@ function Publication.Begin(setting: string): string?
 	if Process.env.GITHUB_REPOSITORY ~= repository or Process.env.CI_EVENT ~= "push" then
 		error("Publication is allowed only for a push in the configured repository", 0)
 	end
-	local runBranch = Process.env.CI_RUN_BRANCH
-	local suffix = if runBranch then runBranch:sub(#configuration.branchPrefix + 1) else ""
+	local defaultBranch = Process.env.CI_DEFAULT_BRANCH
+	local source = Process.env.CI_SOURCE_SHA
 	if Process.env.CI_GRAPH_RUN ~= "true"
 		or Process.env.CI_PHASE ~= "publish"
-		or Process.env.GITHUB_EVENT_NAME ~= "push"
-		or not runBranch
-		or runBranch:sub(1, #configuration.branchPrefix) ~= configuration.branchPrefix
-		or not suffix:match("^%d+%-%d+$")
-		or Process.env.GITHUB_REF ~= `refs/heads/{runBranch}`
+		or Process.env.GITHUB_EVENT_NAME ~= "repository_dispatch"
+		or Process.env.CI_ORIGIN_TRUSTED ~= "true"
+		or Process.env.CI_PUBLICATION_ENABLED ~= "true"
+		or Process.env.CI_ORIGIN_EVENT ~= "workflow_dispatch"
+		or not defaultBranch or defaultBranch == ""
+		or Process.env.GITHUB_REF ~= `refs/heads/{defaultBranch}`
+		or Process.env.CI_ORIGIN_REF ~= Process.env.GITHUB_REF
+		or not source or #source ~= 40 or not source:match("^%x+$")
+		or source ~= Process.env.GITHUB_SHA
 	then
-		error("Publication requires the validated generated Publish run branch", 0)
+		error("Publication requires confirmed same-run trusted default-branch delivery", 0)
 	end
 	local status, details = Publication.Request("GET", `repos/{repository}`)
 	Publication.RequireSuccess(status, "Read publication repository", details)
-	if runBranch == Publication.Text(details.default_branch) then
-		error("Publication must not execute on the default branch", 0)
+	if defaultBranch ~= Publication.Text(details.default_branch) then
+		error("Default branch changed before publication", 0)
 	end
 	return repository
 end

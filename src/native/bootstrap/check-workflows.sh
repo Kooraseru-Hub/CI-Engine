@@ -13,8 +13,4 @@ mapfile -t workflows < <(git ls-files -- .github/workflows/*.yml)
 if ((${#workflows[@]} == 0)); then echo "No authored workflows found" >&2; exit 1; fi
 "$directory/actionlint" -shellcheck= "${workflows[@]}"
 node dependencies/packages/core/dependencyLoader/index.ts --only tools.ciEngine --exec tools.ciEngine sync-inputs --check
-for operation in "$@"; do
-  [[ $operation =~ ^[a-z][a-z0-9-]*$ ]] || { echo "Invalid operation name" >&2; exit 2; }
-  node dependencies/packages/core/dependencyLoader/index.ts --exec tools.ciEngine native-emit "$directory/generated/$operation" "$operation"
-  "$directory/actionlint" -shellcheck= "$directory/generated/$operation"/*.yml
-done
+node dependencies/packages/core/dependencyLoader/index.ts --exec tools.ciEngine native-plan

@@ -6,11 +6,13 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
   actions: read
   id-token: write
   pull-requests: write
   checks: write
+  issues: write
+  pages: write
 
 jobs:
   smoke:
