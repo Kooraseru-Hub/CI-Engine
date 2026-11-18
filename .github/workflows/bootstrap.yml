@@ -17,6 +17,10 @@ on:
         type: boolean
         required: false
         default: false
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        description: Environment-scoped Cloudflare Pages publication credential
+        required: false
 
 
 # Each executable job receives only the authority of its static permission lane.
