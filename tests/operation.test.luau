@@ -76,13 +76,13 @@ do
     local copy = table.clone(cfg)
     local operations = table.clone(cfg.operations)
     local work = table.clone(cfg.operations.review)
-    work.native = { command = { "node", "ci/github/workflows/launch.cjs" } }
+    work.hostTests = { command = { "node", "tests/hosts.cjs" }, artifactPath = "build/artifacts/application" }
     operations.review = work
     copy.operations = operations
-    check("read-only native adapter is a separately gated capability",
+    check("host tests are a read-only capability",
         Operation.Resolve(copy, context).mode == "readonly")
-    work.native = { command = {} }
-    check("native adapter rejects empty commands", not pcall(function()
+    work.hostTests = { command = {}, artifactPath = "build/artifacts" }
+    check("host tests reject empty commands", not pcall(function()
         Operation.Resolve(copy, context)
     end))
 end

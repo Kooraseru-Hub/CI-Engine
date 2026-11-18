@@ -51,6 +51,8 @@ function Operation.Resolve(config: any, context: {
     if operation.mode ~= "readonly" and operation.mode ~= "generated" and operation.mode ~= "protected" then
         fail("unsupported operation mode: " .. name)
     end
+    if operation.native ~= nil then fail("obsolete external validation adapter; use hostTests") end
+    if operation.hostTests ~= nil and operation.mode ~= "readonly" then fail("host tests require read-only execution") end
     if context.event == "pull_request" and operation.mode ~= "readonly" then fail("PR requests must remain read-only") end
     if operation.mode == "generated" then
         if context.event == "pull_request" or (context.event ~= "push" and context.event ~= "workflow_dispatch") then
@@ -85,7 +87,7 @@ function Operation.Resolve(config: any, context: {
             or context.ref ~= "refs/heads/" .. context.defaultBranch then
             fail("protected work requires a trusted default-branch event")
         end
-        if operation.execution ~= nil or operation.native ~= nil then
+        if operation.execution ~= nil or operation.hostTests ~= nil then
             fail("protected components cannot request another execution adapter")
         end
         if type(operation.environment) ~= "string"
@@ -104,10 +106,10 @@ function Operation.Resolve(config: any, context: {
         end
         local patterns = list(operation.components, name .. ".components")
         if #patterns == 0 then fail("read-only operation selects no components") end
-        if operation.native ~= nil then
-            if type(operation.native) ~= "table" then fail("native adapter must be a record") end
-            if #list(operation.native.command, name .. ".native.command") == 0 then
-                fail("native adapter requires an executable")
+        if operation.hostTests ~= nil then
+            local spec = operation.hostTests
+            if type(spec) ~= "table" or type(spec.artifactPath) ~= "string" or #list(spec.command, name .. ".hostTests.command") == 0 then
+                fail("invalid host-test declaration")
             end
         end
     end

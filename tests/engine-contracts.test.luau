@@ -106,14 +106,10 @@ check("exit failure mapping", Outcome.FromExitCode(1) == "failed")
 local Fs = require("@std/fs")
 local workflow = Fs.readFileToString(".github/workflows/bootstrap.yml")
 local action = Fs.readFileToString("action.yml")
-check("native adapter output crosses composite action boundary",
-    action:find("value: ${{ steps.engine.outputs.native }}", 1, true) ~= nil)
-check("native adapter output crosses authorization job boundary",
-    workflow:find("native: ${{ steps.permission.outputs.native }}", 1, true) ~= nil)
-check("trusted source-push execution checks native adapter output",
-    workflow:find("needs.authorize.outputs.native == 'true'", 1, true) ~= nil)
-check("manual validation permits a guarded default-branch native launch",
-    workflow:find("needs.resolve.outputs.trusted == 'true'", 1, true) ~= nil)
+check("host-test matrix output crosses composite action boundary", action:find("value: ${{ steps.engine.outputs.host_matrix }}", 1, true) ~= nil)
+check("host-test matrix is attached to plan", workflow:find("host_matrix: ${{ steps.plan.outputs.host_matrix }}", 1, true) ~= nil)
+check("native tests consume same-run artifacts", workflow:find("name: ci-host-test-input", 1, true) ~= nil)
+check("no generated validation launcher", workflow:find("Launch native build-only pipeline", 1, true) == nil)
 
 local expected: { [string]: { string } } = {
     resolve = {},
@@ -122,15 +118,16 @@ local expected: { [string]: { string } } = {
     inspect = { "resolve" },
     plan = { "resolve", "discover" },
     authorize = { "resolve", "plan", "inspect" },
-    execute = { "resolve", "prepare", "authorize" },
-    report = { "execute" },
+    execute = { "resolve", "prepare", "plan", "authorize" },
+    test = { "execute", "plan" },
+    report = { "execute", "plan", "test" },
     cleanup = { "report" },
     validate = { "resolve", "cleanup" },
 }
 local labels: { [string]: string } = {
     resolve = "Resolve", prepare = "Prepare", discover = "Discover",
     inspect = "Inspect", plan = "Plan", authorize = "Authorize",
-    execute = "Execute", report = "Collect", cleanup = "Cleanup",
+    execute = "Execute", test = "Test (${{ matrix.id }})", report = "Collect", cleanup = "Cleanup",
     validate = "validate",
 }
 local found: { [string]: { string } } = {}
@@ -155,7 +152,7 @@ for line in workflow:gmatch("[^\r\n]+") do
             end
             local label = line:match("^    name: (.+)$")
             if label then names[current] = label end
-            if line:match("^    if:") and current ~= "report" and current ~= "cleanup" and current ~= "validate" then
+            if line:match("^    if:") and current ~= "test" and current ~= "report" and current ~= "cleanup" and current ~= "validate" then
                 error("controller stage is conditionally skipped: " .. current, 0)
             end
         end
@@ -187,7 +184,7 @@ for identity, dependencies in found do
 end
 check("exactly one controller entry point", roots == 1)
 check("controller converges before Execute", #found.authorize == 3
-    and #found.execute == 3)
+    and #found.execute == 4)
 check("protected operations execute within ordinary Execute", workflow:find("phase: protected", 1, true) ~= nil)
 check("engine has no provider-specific dispatch", workflow:find("cloudflare", 1, true) == nil)
 check("protected components have explicit scoped bindings", workflow:find("CI_COMPONENT_CREDENTIALS", 1, true) ~= nil)

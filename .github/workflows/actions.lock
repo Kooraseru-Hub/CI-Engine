@@ -4,6 +4,7 @@ version: 'v0.0.3'
 workflows:
     '.github/workflows/bootstrap.yml':
         - 'actions/checkout@v7'
+        - 'actions/download-artifact@v8'
         - 'actions/upload-artifact@v7'
         - 'jdx/mise-action@v5'
 dependencies:
@@ -12,6 +13,11 @@ dependencies:
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
         owner_id: 44036562
         repo_id: 197814629
+    'actions/download-artifact@v8':
+        ref: 'v8'
+        commit: 'sha1-9000827ccba6bdab643e8b6fd33ac0654aef8333'
+        owner_id: 44036562
+        repo_id: 192626254
     'actions/upload-artifact@v7':
         ref: 'v7'
         commit: 'sha1-cf430e030ddbb5b0abf93d22962f4752f3646cd9'

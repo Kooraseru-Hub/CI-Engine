@@ -56,7 +56,6 @@ jobs:
       operation: ${{ steps.route.outputs.operation }}
       mode: ${{ steps.route.outputs.mode }}
       environment: ${{ steps.route.outputs.environment }}
-      native: ${{ steps.route.outputs.native }}
       publication: ${{ steps.route.outputs.publication }}
     steps:
       - name: Admit immutable execution request
@@ -179,6 +178,10 @@ jobs:
   plan:
     name: Plan
     needs: [resolve, discover]
+    outputs:
+      host_tests: ${{ steps.plan.outputs.host_tests }}
+      host_matrix: ${{ steps.plan.outputs.host_matrix }}
+      host_artifact: ${{ steps.plan.outputs.host_artifact }}
     env:
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
@@ -196,6 +199,7 @@ jobs:
           ref: ${{ needs.resolve.outputs.checkout }}
           persist-credentials: false
       - name: Build validated execution graph
+        id: plan
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -221,7 +225,6 @@ jobs:
       operation: ${{ steps.permission.outputs.operation }}
       mode: ${{ steps.permission.outputs.mode }}
       environment: ${{ steps.permission.outputs.environment }}
-      native: ${{ steps.permission.outputs.native }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v7
@@ -241,7 +244,7 @@ jobs:
 
   execute:
     name: Execute
-    needs: [resolve, prepare, authorize]
+    needs: [resolve, prepare, plan, authorize]
     env:
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
@@ -254,7 +257,7 @@ jobs:
       contents: read
       actions: read
     environment:
-      name: ${{ (needs.authorize.outputs.mode == 'protected' || needs.authorize.outputs.mode == 'generated') && needs.authorize.outputs.environment || ( needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && needs.resolve.outputs.trusted == 'true') && 'ci-bootstrap' || 'ci-readonly' }}
+      name: ${{ (needs.authorize.outputs.mode == 'protected' || needs.authorize.outputs.mode == 'generated') && needs.authorize.outputs.environment || 'ci-readonly' }}
       deployment: false
     steps:
       - name: Checkout consumer
@@ -271,20 +274,6 @@ jobs:
           CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
         with:
           phase: execute
-          operation: ${{ inputs.operation }}
-          publish: ${{ inputs.publish }}
-      - name: Launch native build-only pipeline
-        if: ${{ env.ACT != 'true' && needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && needs.resolve.outputs.trusted == 'true' }}
-        uses: $/
-        env:
-          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          CI_ENGINE_SELECTED_OPERATION: ${{ needs.authorize.outputs.operation }}
-          CI_NATIVE_WRITE_TOKEN: ${{ secrets.bootstrap_token }}
-          CI_NATIVE_APP_ID: ${{ vars.CI_APP_ID }}
-          CI_NATIVE_APP_PRIVATE_KEY: ${{ secrets.app_private_key }}
-          CI_NATIVE_READ_TOKEN: ${{ github.token }}
-        with:
-          phase: native
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Execute trusted generated adapter
@@ -315,6 +304,14 @@ jobs:
           phase: protected
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
+      - name: Upload native test artifacts
+        if: ${{ needs.plan.outputs.host_tests == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-host-test-input
+          path: ${{ needs.plan.outputs.host_artifact }}
+          if-no-files-found: error
+          retention-days: 7
       - name: Preserve code review diagnostics
         if: ${{ always() && needs.authorize.outputs.mode == 'readonly' }}
         uses: actions/upload-artifact@v7
@@ -347,9 +344,41 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
 
+  test:
+    name: Test (${{ matrix.id }})
+    needs: [execute, plan]
+    if: ${{ needs.plan.outputs.host_tests == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.host_matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ci-host-test-input
+          path: verified
+      - name: Run native executable and verify output
+        shell: pwsh
+        env:
+          TEST_FILE: ${{ matrix.file }}
+          EXPECTED: ${{ matrix.expected }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $binary = Join-Path $PWD ("verified/" + $env:TEST_FILE)
+          if (!(Test-Path -LiteralPath $binary -PathType Leaf)) { throw "Missing executable: $binary" }
+          $lines = @(& $binary)
+          if ($LASTEXITCODE -ne 0) { throw "Executable exited with $LASTEXITCODE" }
+          foreach ($line in (ConvertFrom-Json $env:EXPECTED)) {
+            if ($lines -notcontains $line) { throw "Expected output missing: $line" }
+          }
+
   report:
     name: Collect
-    needs: execute
+    needs: [execute, plan, test]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -358,6 +387,8 @@ jobs:
       - name: Summarize execution
         env:
           EXECUTION_RESULT: ${{ needs.execute.result }}
+          HOST_TESTS: ${{ needs.plan.outputs.host_tests }}
+          HOST_RESULT: ${{ needs.test.result }}
         run: |
           set -euo pipefail
           {
@@ -368,6 +399,7 @@ jobs:
             echo "Project diagnostics and generated-run artifacts are attached to the execution job."
           } >> "$GITHUB_STEP_SUMMARY"
           test "$EXECUTION_RESULT" = success
+          if [[ "$HOST_TESTS" == true ]]; then test "$HOST_RESULT" = success; fi
 
   cleanup:
     name: Cleanup

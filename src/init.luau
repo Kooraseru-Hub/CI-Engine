@@ -9,6 +9,7 @@ local Graph = require("@engine/planning/graph")
 local Components = require("@engine/execution/components")
 local Operation = require("@engine/configuration/operation")
 local Generated = require("@engine/execution/generated")
+local HostTests = require("@engine/planning/hostTests")
 
 local function fail(message: string): never
     error("CI Engine: " .. message, 0)
@@ -52,7 +53,6 @@ local function main(): ()
         writeOutput("environment", route.environment)
         writeOutput("plan", route.plan)
         writeOutput("publication", if route.publication then "true" else "false")
-        writeOutput("native", if route.mode == "readonly" and route.operation.native ~= nil then "true" else "false")
         writeOutput("branch_prefix", route.branchPrefix)
         print("CI Engine: " .. route.name .. " selected (" .. route.mode .. ")")
         return
@@ -91,6 +91,12 @@ local function main(): ()
         end
         return
     end
+    if phase == "plan" then
+        local enabled, matrix, artifact = HostTests.Plan(route.operation.hostTests, context.localExecution)
+        writeOutput("host_tests", enabled)
+        writeOutput("host_matrix", matrix)
+        writeOutput("host_artifact", artifact)
+    end
     if phase == "discover" or phase == "plan" then
         if route.mode ~= "generated" then
             local root = config.componentRoot or Process.env.CI_ENGINE_COMPONENT_ROOT or ".github/components"
@@ -118,7 +124,6 @@ local function main(): ()
         writeOutput("mode", route.mode)
         writeOutput("environment", route.environment)
         writeOutput("operation", route.name)
-        writeOutput("native", if route.mode == "readonly" and route.operation.native ~= nil then "true" else "false")
         if route.mode ~= "readonly" then
             if not context.localExecution and Process.env.CI_ORIGIN_TRUSTED ~= "true" then fail("privileged work requires trusted admission") end
             if not context.localExecution and (context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch) then
@@ -128,28 +133,6 @@ local function main(): ()
         else
             print("CI Engine: read-only execution authorized without publishing credentials")
         end
-        return
-    end
-    if phase == "native" then
-        if route.mode ~= "readonly" or (context.event ~= "push" and context.event ~= "workflow_dispatch") or
-            context.defaultBranch == "" or context.ref ~= "refs/heads/" .. context.defaultBranch then
-            fail("native validation requires a trusted default-branch push")
-        end
-        if route.operation.native == nil then
-            print("CI Engine: no native validation adapter configured")
-            return
-        end
-        local command = route.operation.native.command
-        if type(command) ~= "table" or #command == 0 then fail("missing native validation command") end
-        local environment = table.clone(Process.env)
-        environment.GITHUB_EVENT_NAME = context.event
-        environment.GITHUB_REF = context.ref
-        environment.GITHUB_SHA = Process.env.CI_ORIGIN_SHA or Process.env.GITHUB_SHA
-        environment.CI_ENGINE_OPERATION = route.name
-        print("::group::Launch native validation")
-        local result = Process.run(command, { cwd = Process.cwd(), stdio = "inherit", env = environment })
-        if not result.ok then fail("native validation failed (" .. tostring(result.exitcode) .. ")") end
-        print("::endgroup::")
         return
     end
     if phase == "generated" then

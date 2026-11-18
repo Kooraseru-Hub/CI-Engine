@@ -71,13 +71,9 @@ GitHub permissions are job-scoped. The single `Execute` job inherits the caller'
 The caller must not grant write permissions or OIDC to untrusted invocations. Use separate event workflows when event types require different permission ceilings; each event workflow calls the engine exactly once. The engine itself retains a single Execute job.
 
 
-## Native source-push validation
+## Native validation
 
-A repository can declare an optional `native.command` in a read-only operation (for example, `validation`). On a **push to its configured default branch only**, the reusable workflow runs the ordinary read-only components, then invokes the declared command to create and monitor a build-only native execution tree. Ordinary feature-branch pushes, PRs, and manual read-only runs do not receive this launch credential. No new permanent workflow or job branch is added.
-
-The native launch step receives an explicit short-lived repository-scoped GitHub App token or a separately configured `bootstrap_token`; the default `GITHUB_TOKEN` cannot trigger push workflows when it creates a branch. The source-push Execute stage runs under the configured `ci-bootstrap` environment, while all untrusted read-only runs remain under `ci-readonly`. Repository maintainers must scope environment protection and the GitHub App's Contents/Workflows permissions correctly.
-
-The native adapter is supplied by the consuming repository and must fail when its generated run fails. The engine does not automatically publish packages, pages, releases or branches; those are separate, explicitly authorized operations.
+The optional read-only operation `hostTests` declaration selects an artifact directory and a command emitting the host-test inventory. Plan validates the matrix, Execute uploads its compiled binaries once, and same-run Test jobs download and verify the outputs on hosted Windows runners. Collect requires all configured tests to succeed before reporting the required check. No generated validation workflows, temporary branches or write credentials are required for validation. Local execution skips hosted Windows runners but retains cross-compilation and universal tests.
 
 ## Managed local package
 

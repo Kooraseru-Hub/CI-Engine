@@ -13,7 +13,7 @@ inputs:
     required: false
     default: ""
   phase:
-    description: resolve, prepare, discover, inspect, plan, authorize, execute, native, generated, or protected
+    description: resolve, prepare, discover, inspect, plan, authorize, execute, generated, or protected
     required: false
     default: execute
 outputs:
@@ -53,9 +53,15 @@ outputs:
   plan:
     description: Generated execution plan
     value: ${{ steps.engine.outputs.plan }}
-  native:
-    description: Whether the read-only operation declares a native execution adapter
-    value: ${{ steps.engine.outputs.native }}
+  host_tests:
+    description: Native host-test plan host_tests
+    value: ${{ steps.engine.outputs.host_tests }}
+  host_matrix:
+    description: Native host-test plan host_matrix
+    value: ${{ steps.engine.outputs.host_matrix }}
+  host_artifact:
+    description: Native host-test plan host_artifact
+    value: ${{ steps.engine.outputs.host_artifact }}
   publication:
     description: Whether this operation permits publication
     value: ${{ steps.engine.outputs.publication }}
