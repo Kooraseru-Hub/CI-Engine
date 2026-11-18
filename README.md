@@ -81,7 +81,7 @@ Install the exact workflow commit through the consumer's dependency provider. Th
 
 ## Native adapter
 
-The native adapter (`src/native/`) owns discovery of Luau component contracts, dependency planning, native job compilation, credential selection, GitHub resource reconciliation, temporary branches, artifact transport and consumer test execution. Installed consumers invoke it using the managed CLI: `native`, `native-validate`, `native-test`, `native-lint`, `native-logged`, `native-launch <renderer>` and `component-script <entry>`. The consumer owns its component implementations, native graph renderer (if needed), and configuration. The adapter's working directory must be the consumer workspace. Keep the workflow-call-only bootstrap reference on generated branches; remove runnable event callers instead.
+The native adapter (`src/native/`) owns discovery of Luau component contracts, dependency planning, native job compilation, credential selection, GitHub resource reconciliation, temporary branches, artifact transport and consumer test execution. Installed consumers invoke it using the managed CLI: `native`, `native-validate`, `native-test`, `native-lint`, `native-logged`, `component-script <entry>`. The consumer owns its component implementations, native graph renderer (if needed), and configuration. The adapter's working directory must be the consumer workspace. Retain the pin-only bootstrap declaration on explicitly generated deployment branches, removing event callers.
 
 ## Event dispatch
 

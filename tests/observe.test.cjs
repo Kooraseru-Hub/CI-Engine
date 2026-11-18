@@ -48,3 +48,12 @@ test("nonblocking status exposes available phases without subscribing to them",a
  assert.equal(result.status,"in_progress");
  assert.deepEqual(JSON.parse(result.phases),{discover:{job_id:"7",status:"completed",conclusion:"success"},plan:{job_id:"8",status:"in_progress",conclusion:null}});
 });
+
+test("optional Test signal aggregates matrix children",async()=>{
+ const result=await observe("Test","42",env,async path=>path.includes("/jobs?")?{jobs:[
+  {id:1,name:"CI Engine / engine / Test (amd)",status:"completed",conclusion:"success"},
+  {id:2,name:"CI Engine / engine / Test (arm)",status:"completed",conclusion:"failure"},
+  {id:3,name:"CI Engine / engine / Collect",status:"in_progress",conclusion:null}
+ ]}:{...target,status:"in_progress"},tick);
+ assert.equal(result.conclusion,"failure");assert.deepEqual(JSON.parse(result.job_ids),[1,2]);
+});
