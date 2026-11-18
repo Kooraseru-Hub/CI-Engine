@@ -82,3 +82,7 @@ The native adapter is supplied by the consuming repository and must fail when it
 ## Managed local package
 
 Install the exact workflow commit through the consumer's dependency provider. The CLI stages the installed package and the consumer's authored workflows in an isolated checkout; it does not fetch its own source. `node cli.cjs run validation` selects manual validation. `node cli.cjs sync-inputs` regenerates the manual operation choices from configuration; `--check` verifies that they agree. Local runs never authorize publication or protected operations. Some hosted capabilities, including native Windows runners, still require real GitHub verification.
+
+## Native adapter
+
+The native adapter (`src/native/`) owns discovery of Luau component contracts, dependency planning, native job compilation, credential selection, GitHub resource reconciliation, temporary branches, artifact transport and consumer test execution. Installed consumers invoke it using the managed CLI: `native`, `native-validate`, `native-test`, `native-lint`, `native-logged`, `native-launch <renderer>` and `component-script <entry>`. The consumer owns its component implementations, native graph renderer (if needed), and configuration. The adapter's working directory must be the consumer workspace. Keep the workflow-call-only bootstrap reference on generated branches; remove runnable event callers instead.

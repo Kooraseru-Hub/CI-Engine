@@ -1,4 +1,4 @@
--- dependencies/managed/packages/ci-engine/src/native/bootstrap/contracts/contract.luau
+-- src/native/bootstrap/contracts/contract.luau
 --!strict
 
 -- Validated metadata for a discovered component class.

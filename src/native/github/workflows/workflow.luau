@@ -1,4 +1,4 @@
--- dependencies/managed/packages/ci-engine/src/native/github/workflows/workflow.luau
+-- src/native/github/workflows/workflow.luau
 --!strict
 
 local Configuration = require("@ci/github/configuration")
