@@ -3,6 +3,11 @@ name: CI Engine
 on:
   workflow_call:
     inputs:
+      request:
+        description: Independent dispatch request envelope
+        type: string
+        required: false
+        default: ''
       operation:
         description: Consumer-defined operation selected by the calling workflow
         type: string
@@ -30,9 +35,6 @@ on:
 
 # Each caller defines the maximum permissions; planning jobs downgrade to read-only.
 # Execute inherits the caller ceiling so protected and untrusted invocations differ.
-env:
-  CI_EVENT_ACTION: ${{ github.event.action || '' }}
-
 jobs:
   resolve:
     name: Resolve
@@ -40,16 +42,38 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      pull-requests: read
+      checks: write
     outputs:
+      event: ${{ steps.admit.outputs.event }}
+      ref: ${{ steps.admit.outputs.ref }}
+      sha: ${{ steps.admit.outputs.sha }}
+      checkout: ${{ steps.admit.outputs.checkout }}
+      action: ${{ steps.admit.outputs.action }}
+      trusted: ${{ steps.admit.outputs.trusted }}
+      check: ${{ steps.admit.outputs.check }}
+      inputs: ${{ steps.admit.outputs.inputs }}
       operation: ${{ steps.route.outputs.operation }}
       mode: ${{ steps.route.outputs.mode }}
       environment: ${{ steps.route.outputs.environment }}
       native: ${{ steps.route.outputs.native }}
       publication: ${{ steps.route.outputs.publication }}
     steps:
+      - name: Admit immutable execution request
+        id: admit
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          phase: admit
+          request: ${{ inputs.request }}
+          operation: ${{ inputs.operation }}
+          publish: ${{ inputs.publish }}
       - name: Checkout consumer
         uses: actions/checkout@v7
         with:
+          ref: ${{ steps.admit.outputs.checkout }}
           fetch-depth: 0
           persist-credentials: false
       - name: Resolve configured operation
@@ -57,6 +81,11 @@ jobs:
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CI_ORIGIN_EVENT: ${{ steps.admit.outputs.event }}
+          CI_ORIGIN_REF: ${{ steps.admit.outputs.ref }}
+          CI_ORIGIN_SHA: ${{ steps.admit.outputs.sha }}
+          CI_ORIGIN_ACTION: ${{ steps.admit.outputs.action }}
+          CI_ORIGIN_INPUTS: ${{ steps.admit.outputs.inputs }}
         with:
           phase: resolve
           operation: ${{ inputs.operation }}
@@ -65,6 +94,12 @@ jobs:
   prepare:
     name: Prepare
     needs: resolve
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -73,6 +108,7 @@ jobs:
       - name: Checkout consumer
         uses: actions/checkout@v7
         with:
+          ref: ${{ needs.resolve.outputs.checkout }}
           persist-credentials: false
       - name: Prepare workspace
         uses: $/
@@ -87,6 +123,12 @@ jobs:
   discover:
     name: Discover
     needs: resolve
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -95,6 +137,7 @@ jobs:
       - name: Checkout consumer
         uses: actions/checkout@v7
         with:
+          ref: ${{ needs.resolve.outputs.checkout }}
           persist-credentials: false
       - name: Discover declared work
         uses: $/
@@ -108,6 +151,12 @@ jobs:
   inspect:
     name: Inspect
     needs: resolve
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -116,6 +165,7 @@ jobs:
       - name: Checkout consumer
         uses: actions/checkout@v7
         with:
+          ref: ${{ needs.resolve.outputs.checkout }}
           persist-credentials: false
       - name: Inspect event and trust policy
         uses: $/
@@ -128,7 +178,13 @@ jobs:
 
   plan:
     name: Plan
-    needs: discover
+    needs: [resolve, discover]
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -137,6 +193,7 @@ jobs:
       - name: Checkout consumer
         uses: actions/checkout@v7
         with:
+          ref: ${{ needs.resolve.outputs.checkout }}
           persist-credentials: false
       - name: Build validated execution graph
         uses: $/
@@ -149,7 +206,13 @@ jobs:
 
   authorize:
     name: Authorize
-    needs: [plan, inspect]
+    needs: [resolve, plan, inspect]
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -163,6 +226,7 @@ jobs:
       - name: Checkout consumer
         uses: actions/checkout@v7
         with:
+          ref: ${{ needs.resolve.outputs.checkout }}
           persist-credentials: false
       - name: Validate trust boundary
         id: permission
@@ -176,15 +240,26 @@ jobs:
 
   execute:
     name: Execute
-    needs: [prepare, authorize]
+    needs: [resolve, prepare, authorize]
+    env:
+      CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
+      CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
+      CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
+      CI_ORIGIN_ACTION: ${{ needs.resolve.outputs.action }}
+      CI_ORIGIN_INPUTS: ${{ needs.resolve.outputs.inputs }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
     environment:
-      name: ${{ (needs.authorize.outputs.mode == 'protected' || needs.authorize.outputs.mode == 'generated') && needs.authorize.outputs.environment || ( needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && 'ci-bootstrap' || 'ci-readonly' }}
+      name: ${{ (needs.authorize.outputs.mode == 'protected' || needs.authorize.outputs.mode == 'generated') && needs.authorize.outputs.environment || ( needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && needs.resolve.outputs.trusted == 'true') && 'ci-bootstrap' || 'ci-readonly' }}
+      deployment: false
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v7
         with:
+          ref: ${{ needs.resolve.outputs.checkout }}
           fetch-depth: 0
           persist-credentials: false
       - name: Execute read-only components
@@ -198,7 +273,7 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Launch native build-only pipeline
-        if: ${{ env.ACT != 'true' && needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        if: ${{ env.ACT != 'true' && needs.authorize.outputs.mode == 'readonly' && needs.authorize.outputs.native == 'true' && needs.resolve.outputs.trusted == 'true' }}
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -212,7 +287,7 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Execute trusted generated adapter
-        if: ${{ needs.authorize.outputs.mode == 'generated' && github.event_name != 'pull_request' && (env.ACT == 'true' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}
+        if: ${{ needs.authorize.outputs.mode == 'generated' && (env.ACT == 'true' || needs.resolve.outputs.trusted == 'true') }}
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -227,7 +302,7 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Execute protected components
-        if: ${{ needs.authorize.outputs.mode == 'protected' }}
+        if: ${{ needs.authorize.outputs.mode == 'protected' && needs.resolve.outputs.trusted == 'true' }}
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -312,12 +387,23 @@ jobs:
 
   validate:
     name: validate
-    needs: cleanup
+    needs: [resolve, cleanup]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions: {}
+    permissions:
+      checks: write
     steps:
+      - name: Report independent execution to PR
+        if: ${{ needs.resolve.outputs.check != '' }}
+        uses: $/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_CHECK_ID: ${{ needs.resolve.outputs.check }}
+          CI_CHECK_RESULT: ${{ needs.cleanup.result }}
+        with:
+          phase: status
+          operation: ${{ inputs.operation }}
       - name: Require completed pipeline
         env:
           CLEANUP_RESULT: ${{ needs.cleanup.result }}

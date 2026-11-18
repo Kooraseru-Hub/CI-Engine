@@ -51,6 +51,7 @@ function Operation.Resolve(config: any, context: {
     if operation.mode ~= "readonly" and operation.mode ~= "generated" and operation.mode ~= "protected" then
         fail("unsupported operation mode: " .. name)
     end
+    if context.event == "pull_request" and operation.mode ~= "readonly" then fail("PR requests must remain read-only") end
     if operation.mode == "generated" then
         if context.event == "pull_request" or (context.event ~= "push" and context.event ~= "workflow_dispatch") then
             fail("untrusted events cannot run generated work")
@@ -117,9 +118,9 @@ end
 
 function Operation.Context(env: { [string]: string }): any
     return {
-        event = env.GITHUB_EVENT_NAME or "workflow_dispatch",
-        action = env.CI_EVENT_ACTION or "",
-        ref = env.GITHUB_REF or "",
+        event = env.CI_ORIGIN_EVENT or env.GITHUB_EVENT_NAME or "workflow_dispatch",
+        action = env.CI_ORIGIN_ACTION or "",
+        ref = env.CI_ORIGIN_REF or env.GITHUB_REF or "",
         defaultBranch = env.CI_DEFAULT_BRANCH or "",
         requested = env.CI_REQUESTED_OPERATION or "",
         confirmPublish = env.CI_REQUESTED_PUBLISH == "true",

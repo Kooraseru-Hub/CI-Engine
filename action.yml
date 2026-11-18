@@ -8,11 +8,39 @@ inputs:
     description: Explicit manual publication confirmation
     required: false
     default: "false"
+  request:
+    description: Validated dispatch request envelope
+    required: false
+    default: ""
   phase:
     description: resolve, prepare, discover, inspect, plan, authorize, execute, native, generated, or protected
     required: false
     default: execute
 outputs:
+  event:
+    description: Admission event
+    value: ${{ steps.admission.outputs.event }}
+  ref:
+    description: Admission ref
+    value: ${{ steps.admission.outputs.ref }}
+  sha:
+    description: Admission sha
+    value: ${{ steps.admission.outputs.sha }}
+  checkout:
+    description: Admission checkout
+    value: ${{ steps.admission.outputs.checkout }}
+  action:
+    description: Admission action
+    value: ${{ steps.admission.outputs.action }}
+  trusted:
+    description: Admission trusted
+    value: ${{ steps.admission.outputs.trusted }}
+  check:
+    description: Admission check
+    value: ${{ steps.admission.outputs.check }}
+  inputs:
+    description: Admission inputs
+    value: ${{ steps.admission.outputs.inputs }}
   operation:
     description: Validated operation
     value: ${{ steps.engine.outputs.operation }}
@@ -37,13 +65,26 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Admit request or report status
+      if: ${{ inputs.phase == 'admit' || inputs.phase == 'status' }}
+      id: admission
+      shell: bash
+      env:
+        CI_DISPATCH_REQUEST: ${{ inputs.request }}
+        CI_DISPATCH_OPERATION: ${{ inputs.operation }}
+        CI_DISPATCH_PUBLISH: ${{ inputs.publish }}
+        CI_DISPATCH_SENDER: ${{ github.event.sender.login || '' }}
+        CI_ADMISSION_PHASE: ${{ inputs.phase }}
+      run: node "$GITHUB_ACTION_PATH/src/adapters/github/request.cjs" "$CI_ADMISSION_PHASE"
     - name: Provision engine runtime
+      if: ${{ inputs.phase != 'admit' && inputs.phase != 'status' }}
       uses: jdx/mise-action@v5
       with:
         version: "2026.11.8"
         working_directory: ${{ github.action_path }}
         install: true
     - name: Run selected engine phase
+      if: ${{ inputs.phase != 'admit' && inputs.phase != 'status' }}
       id: engine
       shell: bash
       working-directory: ${{ github.workspace }}

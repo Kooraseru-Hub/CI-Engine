@@ -62,6 +62,9 @@ function Components.Run(ordered: { string }, components: { [string]: any }, prot
             fail(identity .. ": a module-backed component requires an explicit execution adapter")
         end
         local environment = table.clone(Process.env)
+        environment.GITHUB_EVENT_NAME = Process.env.CI_ORIGIN_EVENT or Process.env.GITHUB_EVENT_NAME
+        environment.GITHUB_REF = Process.env.CI_ORIGIN_REF or Process.env.GITHUB_REF
+        environment.GITHUB_SHA = Process.env.CI_ORIGIN_SHA or Process.env.GITHUB_SHA
         environment.GH_TOKEN = ""
         environment.GITHUB_TOKEN = ""
         -- A universal execution job may have OIDC permission for its trusted

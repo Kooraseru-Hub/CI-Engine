@@ -141,6 +141,9 @@ local function main(): ()
         local command = route.operation.native.command
         if type(command) ~= "table" or #command == 0 then fail("missing native validation command") end
         local environment = table.clone(Process.env)
+        environment.GITHUB_EVENT_NAME = context.event
+        environment.GITHUB_REF = context.ref
+        environment.GITHUB_SHA = Process.env.CI_ORIGIN_SHA or Process.env.GITHUB_SHA
         environment.CI_ENGINE_OPERATION = route.name
         print("::group::Launch native validation")
         local result = Process.run(command, { cwd = Process.cwd(), stdio = "inherit", env = environment })

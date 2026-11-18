@@ -22,6 +22,9 @@ function Generated.Run(route: any, context: any): ()
     local operation = route.operation
     local command = operation.execution.command
     local environment = table.clone(Process.env)
+    environment.GITHUB_EVENT_NAME = context.event
+    environment.GITHUB_REF = context.ref
+    environment.GITHUB_SHA = Process.env.CI_ORIGIN_SHA or Process.env.GITHUB_SHA
     environment.CI_EVENT = context.event
     if localExecution then
         for name in environment do

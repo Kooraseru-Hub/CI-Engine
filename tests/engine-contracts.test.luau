@@ -113,19 +113,19 @@ check("native adapter output crosses authorization job boundary",
 check("trusted source-push execution checks native adapter output",
     workflow:find("needs.authorize.outputs.native == 'true'", 1, true) ~= nil)
 check("manual validation permits a guarded default-branch native launch",
-    workflow:find("github.event_name == 'workflow_dispatch'", 1, true) ~= nil)
+    workflow:find("needs.resolve.outputs.trusted == 'true'", 1, true) ~= nil)
 
 local expected: { [string]: { string } } = {
     resolve = {},
     prepare = { "resolve" },
     discover = { "resolve" },
     inspect = { "resolve" },
-    plan = { "discover" },
-    authorize = { "plan", "inspect" },
-    execute = { "prepare", "authorize" },
+    plan = { "resolve", "discover" },
+    authorize = { "resolve", "plan", "inspect" },
+    execute = { "resolve", "prepare", "authorize" },
     report = { "execute" },
     cleanup = { "report" },
-    validate = { "cleanup" },
+    validate = { "resolve", "cleanup" },
 }
 local labels: { [string]: string } = {
     resolve = "Resolve", prepare = "Prepare", discover = "Discover",
@@ -186,13 +186,13 @@ for identity, dependencies in found do
     end
 end
 check("exactly one controller entry point", roots == 1)
-check("controller converges before Execute", #found.authorize == 2
-    and #found.execute == 2)
+check("controller converges before Execute", #found.authorize == 3
+    and #found.execute == 3)
 check("protected operations execute within ordinary Execute", workflow:find("phase: protected", 1, true) ~= nil)
 check("engine has no provider-specific dispatch", workflow:find("cloudflare", 1, true) == nil)
 check("protected components have explicit scoped bindings", workflow:find("CI_COMPONENT_CREDENTIALS", 1, true) ~= nil)
 local execution = workflow:match("\n  execute:\n(.-)\n  report:") or ""
-check("Execute inherits the explicit caller permission ceiling", execution:find("\n    permissions:", 1, true) == nil)
+check("Execute explicitly restricts its repository token", execution:find("contents: read", 1, true) ~= nil and execution:find("checks: write", 1, true) == nil)
 check("only protected component execution receives caller GitHub token", execution:find("CI_COMPONENT_GITHUB_TOKEN", 1, true) ~= nil)
 local protectedPlan = Graph.Plan({ ["test/publish"] = privileged }, { "*" }, "repository_dispatch", "protected")
 check("protected component uses normal dependency planner", #protectedPlan.ordered == 1)
