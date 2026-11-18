@@ -28,11 +28,11 @@ function validate(request, env) {
   const event = request.event;
   if (!["push","pull_request","workflow_dispatch","repository_dispatch"].includes(event))
     throw new Error("Unsupported request event");
-  if (event === "pull_request" && (request.operation !== "review" || request.publish || !Number.isSafeInteger(request.pr) || request.pr < 1))
+  if (event === "pull_request" && (request.publish || !Number.isSafeInteger(request.pr) || request.pr < 1))
     throw new Error("PR requests are read-only review");
-  if (event === "push" && (request.operation !== "validation" || request.publish))
+  if (event === "push" && request.publish)
     throw new Error("Push requests are validation only");
-  if (event === "repository_dispatch" && (request.operation !== "remote-validation" || request.publish))
+  if (event === "repository_dispatch" && request.publish)
     throw new Error("Remote requests are validation only");
   const trusted = ["push","workflow_dispatch"].includes(event) && request.ref === "refs/heads/" + env.CI_DEFAULT_BRANCH;
   if (!trusted && request.publish) throw new Error("Non-default requests cannot publish");

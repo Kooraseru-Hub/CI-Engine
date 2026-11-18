@@ -120,6 +120,7 @@ local function main(): ()
         writeOutput("operation", route.name)
         writeOutput("native", if route.mode == "readonly" and route.operation.native ~= nil then "true" else "false")
         if route.mode ~= "readonly" then
+            if not context.localExecution and Process.env.CI_ORIGIN_TRUSTED ~= "true" then fail("privileged work requires trusted admission") end
             if not context.localExecution and (context.event == "pull_request" or context.ref ~= "refs/heads/" .. context.defaultBranch) then
                 fail("untrusted event cannot authorize generated execution")
             end

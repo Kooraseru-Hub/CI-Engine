@@ -18,8 +18,7 @@ test("local staging uses the installed revision without changing the original pa
   fs.writeFileSync(path.join(workspace, ".github/workflows/manual.yml"), "jobs:\n  ci:\n    uses: ./.github/workflows/bootstrap.yml\n");
   assert.equal(prepareStagedWorkflow(file, packageRoot), true);
   assert.equal(fs.readFileSync(file, "utf8"), authored);
-  assert.match(fs.readFileSync(path.join(workspace, ".github/workflows/_act-bootstrap.yml"), "utf8"), /uses: \.\/\.github\/workflows\/_act-ci-engine.yml/);
-  assert.match(fs.readFileSync(path.join(workspace, ".github/workflows/_act-entry.yml"), "utf8"), /uses: \.\/\.github\/workflows\/_act-bootstrap.yml/);
+  assert.match(fs.readFileSync(path.join(workspace, ".github/workflows/_act-entry.yml"), "utf8"), /uses: \.\/\.github\/workflows\/_act-ci-engine.yml/);
   const staged = fs.readFileSync(path.join(workspace, ".github/workflows/_act-ci-engine.yml"), "utf8");
   assert.match(staged, /uses: \.\/\.ci-engine-act/);
   assert.match(staged, /actions\/upload-artifact@v4/);

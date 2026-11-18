@@ -36,7 +36,7 @@ function options(args) {
 	const caller = fs.readFileSync(path.join(root, ".github/workflows", entry + ".yml"), "utf8");
 	const defaults = selectedEvent === "workflow_dispatch"
 		? [...caller.matchAll(/^      operation:\s*\n(?:        [^\n]*\n)*?        default:\s*([a-z][a-z0-9-]*)\s*$/gm)].map(x => x[1])
-		: [...new Set([...caller.matchAll(/^      operation:\s*([a-z][a-z0-9-]*)\s*$/gm)].map(x => x[1]).filter(x => config.operations?.[x]?.events?.includes(selectedEvent)))];
+		: [...new Set([...caller.matchAll(/^          CI_OPERATION:\s*([a-z][a-z0-9-]*)\s*$/gm)].map(x => x[1]).filter(x => config.operations?.[x]?.events?.includes(selectedEvent)))];
 	if (defaults.length !== 1) throw new Error("Cannot resolve the caller's default operation");
 	operation ??= fileOperation ?? payloadOperation ?? defaults[0];
 	if (selectedEvent !== "workflow_dispatch" && operation !== defaults[0]) throw new Error("Operation is fixed by the event entry point");
@@ -130,8 +130,23 @@ async function main(args = process.argv.slice(2)) {
 		fs.copyFileSync(path.join(worktree, ".vscode/config/act/actrc"), path.join(worktree, ".actrc"));
 		execFileSync("git", ["add", "-A"], { cwd: worktree, windowsHide: true, stdio: "pipe" });
 		const event = stagedEventArguments(args, selected)[0];
-		const entry = { push: "push.yml", pull_request: "pull.yml", workflow_dispatch: "manual.yml", repository_dispatch: "remote.yml" }[event];
-		prepareStagedWorkflow(path.join(worktree, ".github/workflows/bootstrap.yml"), packageRoot, entry);
+		prepareStagedWorkflow(path.join(worktree, ".github/workflows/bootstrap.yml"), packageRoot);
+		const ref = spawnSync("git", ["symbolic-ref", "-q", "HEAD"], {cwd:root,encoding:"utf8"}).stdout?.trim() || "refs/heads/local";
+		const request = { event, ref, sha:source, operation:selected.operation, publish:false, ...(event === "pull_request" ? {pr:1} : {}) };
+		const dispatchFile=path.join(runRoot,"dispatch.json");
+		fs.writeFileSync(dispatchFile,JSON.stringify({action:"ci-request",repository:{default_branch:"source"},sender:{login:"github-actions[bot]"},client_payload:request}));
+		function hostedArgs() {
+			const next=[];
+			const excluded=new Set(["-W","--workflows","--input","--input-file","-e","--eventpath"]);
+			const supplied=resolveFileArguments(selected.args);
+			for(let i=0;i<supplied.length;i++){
+				const arg=supplied[i];
+				if(excluded.has(arg)){i++;continue;}
+				if(/^(push|pull_request|workflow_dispatch|repository_dispatch)$/.test(arg)||/^--(input(?:-file)?|workflows|eventpath)=/.test(arg))continue;
+				next.push(arg);
+			}
+			return ["repository_dispatch","--eventpath",dispatchFile,...next];
+		}
 		const config = JSON.parse(fs.readFileSync(path.join(root, "config/ci/operations.json"), "utf8"));
 		const route = config.operations[selected.operation];
 		const authored = ["--workflows", ".github/workflows/_act-entry.yml"];
@@ -140,8 +155,7 @@ async function main(args = process.argv.slice(2)) {
 			record.stages.start = "not required";
 			record.stages[selected.operation] = "running";
 			publish();
-			const stagedArgs = resolveFileArguments(stagedEventArguments(args, selected));
-			await execute([...stagedArgs, ...authored, ...(event === "workflow_dispatch" ? ["--input", "operation=" + selected.operation] : []), ...runtimeArgs], worktree, "execution.log");
+			await execute([...hostedArgs(), ...authored, ...runtimeArgs], worktree, "execution.log");
 			record.stages[selected.operation] = "passed";
 			record.state = "passed";
 			record.exitCode = 0;
@@ -149,8 +163,7 @@ async function main(args = process.argv.slice(2)) {
 			console.log("Completed " + selected.operation + ": " + record.reports);
 			return 0;
 		}
-		const startArgs = resolveFileArguments(selected.args);
-		await execute([...startArgs, ...authored, "--input", "operation=" + selected.operation, ...runtimeArgs], worktree, "start.log");
+		await execute([...hostedArgs(), ...authored, ...runtimeArgs], worktree, "start.log");
 		record.stages.start = "passed";
 		if (selected.operation !== "readiness") {
 			const generated = artifacts.receiveStart(runRoot);
