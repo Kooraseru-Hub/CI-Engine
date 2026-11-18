@@ -20,16 +20,6 @@ type Fields = {
 }
 export type Credentials = setmetatable<Fields, typeof(Credentials)>
 
--- This is the native workflow transport contract, not a secret-name registry.
--- Actual secret names are read exclusively from config/credentials.json.
-local SECRET_ROLES: { [string]: string } = {
-	app_id = "CI_GITHUB_APP_ID_SECRET",
-	app_private_key = "CI_GITHUB_APP_PRIVATE_KEY",
-	bootstrap_token = "CI_GITHUB_BOOTSTRAP_TOKEN",
-	projects_token = "CI_GITHUB_PROJECTS_TOKEN",
-	rulesets_token = "CI_GITHUB_RULESETS_TOKEN",
-}
-
 --- Decode a credential map without echoing values from malformed input.
 local function decodeMap(encoded: string?, label: string): { [string]: string }
 	if not encoded then
@@ -68,17 +58,7 @@ function Credentials.new(profile: Configuration.Profile?): Credentials
 	local configuration = Configuration.new()
 	local supplied: { [string]: string } = {}
 
-	for role, environment in SECRET_ROLES do
-		local value = Process.env[environment]
-		Process.env[environment] = nil
-		if value and value ~= "" and (not profile or table.find(profile.bootstrap, role)) then
-			supplied[role] = value
-		end
-	end
-
-	local appIdVariable = Process.env.CI_GITHUB_APP_ID_VARIABLE
-	Process.env.CI_GITHUB_APP_ID_VARIABLE = nil
-	-- Never consume or forward legacy blanket credential snapshots.
+	-- Refuse blanket credential transport; only declared role bindings are consumed.
 	Process.env.CI_GITHUB_SECRETS = nil
 	Process.env.CI_GITHUB_VARIABLES = nil
 
@@ -113,10 +93,6 @@ function Credentials.new(profile: Configuration.Profile?): Credentials
 		end
 	end
 
-	local appIdName = configuration.credentials.app_id
-	if appIdName and appIdVariable and appIdVariable ~= "" and (not profile or table.find(profile.bootstrap, "app_id")) then
-		fields.variables[appIdName:upper()] = appIdVariable
-	end
 	if profile and profile.githubContext and not profile.usesCommands then
 		local secrets = decodeMap(encodedSecrets, "GitHub secrets")
 		local variables = decodeMap(encodedVariables, "GitHub variables")
@@ -404,7 +380,7 @@ function Credentials.Describe(self: Credentials, configuration: Configuration.Co
 			then "secret available"
 			elseif self.variables[name:upper()]
 				then "variable available"
-				elseif not SECRET_ROLES[role] then "not requested by bootstrap" else "not available to this run"
+				else "not available to this run"
 		print(`{role} -> {name}: {location}`)
 	end
 

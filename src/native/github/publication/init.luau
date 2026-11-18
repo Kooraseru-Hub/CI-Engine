@@ -160,31 +160,22 @@ function Publication.Begin(setting: string): string?
 	if Process.env.GITHUB_REPOSITORY ~= repository or Process.env.CI_EVENT ~= "push" then
 		error("Publication is allowed only for a push in the configured repository", 0)
 	end
+	local runBranch = Process.env.CI_RUN_BRANCH
+	local suffix = if runBranch then runBranch:sub(#configuration.branchPrefix + 1) else ""
+	if Process.env.CI_GRAPH_RUN ~= "true"
+		or Process.env.CI_PHASE ~= "publish"
+		or Process.env.GITHUB_EVENT_NAME ~= "push"
+		or not runBranch
+		or runBranch:sub(1, #configuration.branchPrefix) ~= configuration.branchPrefix
+		or not suffix:match("^%d+%-%d+$")
+		or Process.env.GITHUB_REF ~= `refs/heads/{runBranch}`
+	then
+		error("Publication requires the validated generated Publish run branch", 0)
+	end
 	local status, details = Publication.Request("GET", `repos/{repository}`)
 	Publication.RequireSuccess(status, "Read publication repository", details)
-	local defaultBranch = Publication.Text(details.default_branch)
-	local graphRun = Process.env.CI_GRAPH_RUN == "true"
-	local fixedStage = Process.env.CI_STAGE_MODE == "fixed"
-	if fixedStage then
-		if not graphRun or Process.env.CI_PHASE ~= "publish"
-			or Process.env.GITHUB_REF ~= `refs/heads/{defaultBranch}`
-			or (Process.env.GITHUB_EVENT_NAME ~= "push" and Process.env.GITHUB_EVENT_NAME ~= "workflow_dispatch") then
-			error("Fixed publication requires a trusted source-branch Publish stage", 0)
-		end
-	elseif not graphRun and Process.env.GITHUB_REF ~= `refs/heads/{defaultBranch}` then
-		error("Publication requires a push to the default branch", 0)
-	end
-	if graphRun and not fixedStage then
-		local runBranch = Process.env.CI_RUN_BRANCH
-		local suffix = if runBranch then runBranch:sub(#configuration.branchPrefix + 1) else ""
-		if
-			not runBranch
-			or runBranch:sub(1, #configuration.branchPrefix) ~= configuration.branchPrefix
-			or not suffix:match("^%d+%-%d+$")
-			or Process.env.GITHUB_REF ~= `refs/heads/{runBranch}`
-		then
-			error("Publication requires the validated generated run branch", 0)
-		end
+	if runBranch == Publication.Text(details.default_branch) then
+		error("Publication must not execute on the default branch", 0)
 	end
 	return repository
 end
