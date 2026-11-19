@@ -18,6 +18,12 @@ on:
         required: false
         default: false
     secrets:
+      CI_APP_PRIVATE_KEY:
+        description: Environment-scoped GitHub App key for repository ruleset sync
+        required: false
+      CI_TOKEN:
+        description: Environment-scoped token for Projects sync
+        required: false
       CLOUDFLARE_API_TOKEN:
         description: Environment-scoped Cloudflare Pages publication credential
         required: false
