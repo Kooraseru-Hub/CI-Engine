@@ -31,3 +31,7 @@ GitHub's reusable workflow boundary can hide environment secrets unless the call
 The generated YAML is a platform adapter, not consumer business logic. Configuration owns names, roles and environments; the engine owns scheduling, authorization and execution.
 
 GitHub-native adapters may request App, token, or project/ruleset roles when that capability is selected. Those roles are not mandatory for generic operations. For APIs beyond the job token's supported permission lanes, use a narrowly scoped GitHub App installation token, PAT, or external credential in a protected environment; the engine does not grant organization administration by default.
+
+### Deferred validation failures
+
+Read-only command components may return exit code `79` to signal a completed check with blocking findings. The engine marks the component unsuccessful, skips its dependents, and continues independent work. Ordinary nonzero exits still terminate execution. The controller retains diagnostics, prevents every publication lane from running unless validation explicitly passed, and fails the final required check. Collect and Cleanup report their own execution rather than duplicating the final failure. This protocol is provider- and checker-neutral. Exit code `78` remains reserved for skipped work.

@@ -297,6 +297,8 @@ jobs:
     environment:
       name: ci-readonly
       deployment: false
+    outputs:
+      validation_passed: ${{ steps.execute.outputs.validation_passed }}
     steps:
       - name: Checkout consumer
         uses: actions/checkout@v7
@@ -305,6 +307,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Execute read-only components
+        id: execute
         uses: $/
         env:
           CI_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -314,14 +317,14 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Checkout isolated delivery candidate
-        if: ${{ (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_prepare_ref != '' }}
+        if: ${{ steps.execute.outputs.validation_passed == 'true' && (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_prepare_ref != '' }}
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.delivery_prepare_ref }}
           path: build/ci-candidate
           persist-credentials: false
       - name: Prepare isolated delivery artifact
-        if: ${{ (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_prepare_ref != '' }}
+        if: ${{ steps.execute.outputs.validation_passed == 'true' && (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_prepare_ref != '' }}
         uses: $/
         env:
           CI_ORIGIN_TRUSTED: ${{ needs.resolve.outputs.trusted }}
@@ -334,7 +337,7 @@ jobs:
           operation: ${{ inputs.operation }}
           publish: ${{ inputs.publish }}
       - name: Preserve verified delivery inputs
-        if: ${{ (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_artifact != '' }}
+        if: ${{ steps.execute.outputs.validation_passed == 'true' && (needs.resolve.outputs.trusted == 'true' || needs.resolve.outputs.review_pr != '') && needs.plan.outputs.delivery_artifact != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: ci-delivery-input
@@ -415,7 +418,7 @@ jobs:
   publish_contents:
     name: Publish (contents - ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
-    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_contents == 'true' }}
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && needs.execute.outputs.validation_passed == 'true' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_contents == 'true' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.delivery_contents || '{"include":[]}') }}
@@ -467,7 +470,7 @@ jobs:
   publish_issues:
     name: Publish (issues - ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
-    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_issues == 'true' }}
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && needs.execute.outputs.validation_passed == 'true' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_issues == 'true' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.delivery_issues || '{"include":[]}') }}
@@ -520,7 +523,7 @@ jobs:
   publish_credential:
     name: Publish (credential - ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
-    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_credential == 'true' }}
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && needs.execute.outputs.validation_passed == 'true' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_credential == 'true' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.delivery_credential || '{"include":[]}') }}
@@ -572,7 +575,7 @@ jobs:
   publish_pages:
     name: Publish (pages - ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
-    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_pages == 'true' }}
+    if: ${{ !cancelled() && needs.resolve.outputs.trusted == 'true' && needs.authorize.result == 'success' && needs.authorize.outputs.mode == 'staged' && inputs.publish && needs.execute.result == 'success' && needs.execute.outputs.validation_passed == 'true' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_pages == 'true' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.delivery_pages || '{"include":[]}') }}
@@ -675,7 +678,7 @@ jobs:
   publish_external:
     name: Publish (external - ${{ matrix.id }})
     needs: [resolve, plan, authorize, execute, test]
-    if: ${{ !cancelled() && needs.authorize.result == 'success' && ((needs.resolve.outputs.trusted == 'true' && needs.authorize.outputs.mode == 'staged' && inputs.publish) || (needs.resolve.outputs.review_pr != '' && needs.resolve.outputs.event == 'pull_request' && needs.authorize.outputs.mode == 'readonly' && !inputs.publish)) && needs.execute.result == 'success' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_external == 'true' }}
+    if: ${{ !cancelled() && needs.authorize.result == 'success' && ((needs.resolve.outputs.trusted == 'true' && needs.authorize.outputs.mode == 'staged' && inputs.publish) || (needs.resolve.outputs.review_pr != '' && needs.resolve.outputs.event == 'pull_request' && needs.authorize.outputs.mode == 'readonly' && !inputs.publish)) && needs.execute.result == 'success' && needs.execute.outputs.validation_passed == 'true' && (needs.plan.outputs.host_tests != 'true' || needs.test.result == 'success') && needs.plan.outputs.delivery_has_external == 'true' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.delivery_external || '{"include":[]}') }}
@@ -733,10 +736,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
+    outputs:
+      passed: ${{ steps.summary.outputs.passed }}
     steps:
       - name: Summarize execution
+        id: summary
         env:
           EXECUTION_RESULT: ${{ needs.execute.result }}
+          VALIDATION_PASSED: ${{ needs.execute.outputs.validation_passed }}
           HOST_TESTS: ${{ needs.plan.outputs.host_tests }}
           HOST_RESULT: ${{ needs.test.result }}
           CONTENTS_REQUIRED: ${{ needs.plan.outputs.delivery_has_contents }}
@@ -758,13 +765,19 @@ jobs:
             echo ""
             echo "Project diagnostics and delivery inputs are attached to this run."
           } >> "$GITHUB_STEP_SUMMARY"
-          test "$EXECUTION_RESULT" = success
-          if [[ "$HOST_TESTS" == true ]]; then test "$HOST_RESULT" = success; fi
-          if [[ "$CONTENTS_REQUIRED" == true ]]; then test "$CONTENTS_RESULT" = success; fi
-          if [[ "$ISSUES_REQUIRED" == true ]]; then test "$ISSUES_RESULT" = success; fi
-          if [[ "$CREDENTIAL_REQUIRED" == true ]]; then test "$CREDENTIAL_RESULT" = success; fi
-          if [[ "$PAGES_REQUIRED" == true ]]; then test "$PAGES_RESULT" = success; fi
-          if [[ "$EXTERNAL_REQUIRED" == true ]]; then test "$EXTERNAL_RESULT" = success; fi
+          passed=true
+          if [[ "$EXECUTION_RESULT" != success || "$VALIDATION_PASSED" != true ]]; then passed=false; fi
+          if [[ "$HOST_TESTS" == true && "$HOST_RESULT" != success ]]; then passed=false; fi
+          if [[ "$VALIDATION_PASSED" == true ]]; then
+            if [[ "$CONTENTS_REQUIRED" == true && "$CONTENTS_RESULT" != success ]]; then passed=false; fi
+            if [[ "$ISSUES_REQUIRED" == true && "$ISSUES_RESULT" != success ]]; then passed=false; fi
+            if [[ "$CREDENTIAL_REQUIRED" == true && "$CREDENTIAL_RESULT" != success ]]; then passed=false; fi
+            if [[ "$PAGES_REQUIRED" == true && "$PAGES_RESULT" != success ]]; then passed=false; fi
+            if [[ "$EXTERNAL_REQUIRED" == true && "$EXTERNAL_RESULT" != success ]]; then passed=false; fi
+          fi
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "Validation passed: **$passed**" >> "$GITHUB_STEP_SUMMARY"
+
 
   cleanup:
     name: Cleanup
@@ -775,17 +788,14 @@ jobs:
     permissions: {}
     steps:
       - name: Finalize engine lifecycle
-        env:
-          REPORT_RESULT: ${{ needs.report.result }}
         run: |
           set -euo pipefail
           echo "CI Engine: runner workspaces are ephemeral."
           echo "CI Engine: no temporary execution branches were created."
-          test "$REPORT_RESULT" = success
 
   validate:
     name: validate
-    needs: [resolve, cleanup]
+    needs: [resolve, report, cleanup]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -798,13 +808,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CI_CHECK_ID: ${{ needs.resolve.outputs.check }}
-          CI_CHECK_RESULT: ${{ needs.cleanup.result }}
+          CI_CHECK_RESULT: ${{ needs.report.result == 'success' && needs.report.outputs.passed == 'true' && needs.cleanup.result == 'success' && 'success' || 'failure' }}
         with:
           phase: status
           operation: ${{ inputs.operation }}
       - name: Require completed pipeline
         env:
           CLEANUP_RESULT: ${{ needs.cleanup.result }}
+          REPORT_RESULT: ${{ needs.report.result }}
+          VALIDATION_PASSED: ${{ needs.report.outputs.passed }}
         run: |
           set -euo pipefail
           test "$CLEANUP_RESULT" = success
+          test "$REPORT_RESULT" = success
+          test "$VALIDATION_PASSED" = true
