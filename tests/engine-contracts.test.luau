@@ -252,7 +252,7 @@ check("successful execution permits validation", Components.Run(fixturePlan.orde
 check("successful dependency permits execution", Fs.exists(marker .. "/dependent"))
 Fs.remove(marker .. "/dependent")
 Fs.remove(marker .. "/independent")
-Fs.remove(marker)
+check("remove empty test fixture directory", Process.run({ "rmdir", marker }).ok)
 local _, gates = workflow:gsub("needs%.execute%.outputs%.validation_passed == 'true'", "")
 check("every publisher checks deferred validation", gates == 5)
 check("final check requires aggregate result", workflow:find('test "$VALIDATION_PASSED" = true', 1, true) ~= nil)
