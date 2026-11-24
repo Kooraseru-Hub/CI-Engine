@@ -155,11 +155,6 @@ local function readCatalog(): ({ [string]: Role }, { [string]: Profile }, { [str
 		}
 	end
 
-	for _, id in { "app_id", "app_private_key", "bootstrap_token", "projects_token", "rulesets_token" } do
-		if not roles[id] then
-			catalogError(`roles.{id}`)
-		end
-	end
 
 	for id, raw in record(root.profiles, CREDENTIAL_PATH .. " profiles") do
 		local label = `profiles.{id}`

@@ -16,7 +16,7 @@ function vector(value){
 function map(value={}){
   if(!value||typeof value!=="object"||Array.isArray(value))throw Error("Invalid delivery environment");
   for(const [k,v] of Object.entries(value)){
-    if(!NAME.test(k)||typeof v!=="string"||/[\0\r\n]/.test(v)||/^(GITHUB_|ACTIONS_|RUNNER_|GH_TOKEN$|PATH$|NODE_OPTIONS$|CI_ORIGIN_|CI_REVIEW_|CI_DELIVERY_|CI_CREDENTIAL_|CI_PUBLICATION_)/.test(k))throw Error("Invalid delivery environment binding");
+    if(!NAME.test(k)||typeof v!=="string"||/[\0\r\n]/.test(v)||/^(GITHUB_|ACTIONS_|RUNNER_|GH_TOKEN$|PATH$|NODE_OPTIONS$|CI_ORIGIN_|CI_REVIEW_|CI_DELIVERY_|CI_CREDENTIAL_|CI_EXTERNAL_|CI_BIND_|CI_PUBLICATION_)/.test(k))throw Error("Invalid delivery environment binding");
   }
   return value;
 }
@@ -63,15 +63,17 @@ function normalize(raw){
     const result={id:job.id,lane:job.lane,environment:job.environment,command:vector(job.command),
       env:map(job.env),bindings:[],options_command:[],pages_path:""};
     if(job.bindings!==undefined){
-      if(!Array.isArray(job.bindings)||job.bindings.length>3)throw Error("At most three explicit credential bindings per delivery job");
+      if(!Array.isArray(job.bindings))throw Error("Invalid credential bindings");
       const roles=new Set();
       for(const b of job.bindings){
-        if(!b||!NAME.test(b.role||"")||!NAME.test(b.name||"")||!["secret","variable"].includes(b.source)||roles.has(b.role))throw Error("Invalid credential binding");
+        if(!b||!NAME.test(b.role||"")||!NAME.test(b.name||"")||!["secret","variable"].includes(b.source)||roles.has(b.role)||b.role==="CI_CREDENTIAL_ENVIRONMENT")throw Error("Invalid credential binding");
         if(!/^CI_CREDENTIAL_[A-Z0-9_]+$/.test(b.role)&&!/^CI_EXTERNAL_[A-Z0-9_]+$/.test(b.role)) throw Error("Invalid credential binding role");
-        roles.add(b.role);result.bindings.push(b);
+        if(b.required!==undefined&&typeof b.required!=="boolean")throw Error("Invalid credential requirement");
+        roles.add(b.role);result.bindings.push({role:b.role,source:b.source,name:b.name.toUpperCase(),required:b.required!==false});
       }
     }
-    while(result.bindings.length<3)result.bindings.push({name:"",role:"",source:""});
+    result.secret_names=[...new Set(result.bindings.filter(b=>b.source==="secret").map(b=>b.name))];
+    result.variable_names=[...new Set(result.bindings.filter(b=>b.source==="variable").map(b=>b.name))];
     if(job.lane==="pages"){
       if(!safePath(job.pages_path))throw Error("Invalid Pages artifact path");
       result.pages_path=job.pages_path;result.options_command=vector(job.options_command);
@@ -130,23 +132,32 @@ function prepare(env=process.env){
   authorizeDelivery(env);
   const command=vector(JSON.parse(env.CI_DELIVERY_PREPARE_COMMAND)), bindings=map(JSON.parse(env.CI_DELIVERY_PREPARE_ENV));
   const child={...env,...bindings};
-  for(const name of Object.keys(child))if(/^(GH_TOKEN$|GITHUB_TOKEN$|ACTIONS_ID_TOKEN_|CI_CREDENTIAL_|CI_SLOT_|CI_COMPONENT_CREDENTIALS|CI_NATIVE_)/.test(name))delete child[name];
+  for(const name of Object.keys(child))if(/^(GH_TOKEN$|GITHUB_TOKEN$|ACTIONS_ID_TOKEN_|CI_CREDENTIAL_|CI_EXTERNAL_|CI_BIND_|CI_COMPONENT_CREDENTIALS|CI_NATIVE_)/.test(name))delete child[name];
   execute(command,child,path.resolve("build/ci-candidate"));
+}
+function bindCredentials(entry,env){
+  const child={...env,...entry.env};
+  // Transport variables and inherited role values never reach the component.
+  for(const name of Object.keys(child))if(/^(CI_BIND_|CI_CREDENTIAL_|CI_EXTERNAL_)/.test(name))delete child[name];
+  for(const binding of entry.bindings){
+    const key="CI_BIND_"+binding.source.toUpperCase()+"_"+binding.name;
+    const value=env[key];
+    if(!value){
+      if(binding.required)throw Error("Missing required "+binding.source+" "+binding.name+" for "+entry.id+" in "+entry.environment);
+      continue;
+    }
+    child[binding.role]=value;
+  }
+  return child;
 }
 function run(env=process.env,options=false){
   authorizeDelivery(env);
   const raw=JSON.parse(env.CI_DELIVERY_ENTRY);
-  // Matrix entries already contain empty placeholders; remove them before revalidation.
-  const entry=normalize({jobs:[{...raw,bindings:raw.bindings.filter(b=>b.name),
+  const entry=normalize({jobs:[{...raw,
     ...(raw.lane==="pages"?{}:{options_command:undefined,pages_path:undefined})}]}).jobs[0];
   if(entry.lane!==env.CI_DELIVERY_LANE)throw Error("Delivery permission lane mismatch");
   if(env.CI_ORIGIN_EVENT==="pull_request"&&(entry.lane!=="external"||options))throw Error("Review delivery permits only external publication");
-  const child={...env,...entry.env};
-  for(let i=0;i<3;i++){
-    const b=entry.bindings[i];const value=env["CI_SLOT_"+i];
-    if(b.role&&value)child[b.role]=value;
-    delete child["CI_SLOT_"+i];
-  }
+  const child=bindCredentials(entry,env);
   if(entry.bindings.some(b=>b.role.startsWith("CI_CREDENTIAL_"))) child.CI_CREDENTIAL_ENVIRONMENT=entry.environment;
   if(entry.lane!=="pages"){
     delete child.ACTIONS_ID_TOKEN_REQUEST_URL;
@@ -156,7 +167,7 @@ function run(env=process.env,options=false){
   Object.assign(child,{CI_EVENT:"push",CI_OPERATION:env.CI_DELIVERY_OPERATION,CI_PHASE:"publish",CI_GRAPH_RUN:"true",CI_SOURCE_SHA:env.CI_ORIGIN_SHA,CI_PUBLICATION_ENABLED:"true",CI_ENGINE_OPERATION:env.CI_DELIVERY_OPERATION});
   execute(options?entry.options_command:entry.command,child);
 }
-module.exports={normalize,trusted,reviewTrusted,normalizeReview,safePath};
+module.exports={normalize,trusted,reviewTrusted,normalizeReview,safePath,bindCredentials};
 if(require.main===module)try{
   const command=process.argv[2];
   if(command==="delivery-plan")planner();

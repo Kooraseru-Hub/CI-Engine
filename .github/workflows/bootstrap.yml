@@ -17,16 +17,6 @@ on:
         type: boolean
         required: false
         default: false
-    secrets:
-      CI_APP_PRIVATE_KEY:
-        description: Environment-scoped GitHub App key for repository ruleset sync
-        required: false
-      CI_TOKEN:
-        description: Environment-scoped token for Projects sync
-        required: false
-      CLOUDFLARE_API_TOKEN:
-        description: Environment-scoped Cloudflare Pages publication credential
-        required: false
 
 
 # Each executable job receives only the authority of its static permission lane.
@@ -462,9 +452,7 @@ jobs:
         uses: $/
         env:
           GH_TOKEN: ${{ github.token }}
-          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
-          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
-          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+          # Engine-generated environment bindings (direct workflow only)
         with:
           phase: delivery-run
           operation: ${{ inputs.operation }}
@@ -516,9 +504,7 @@ jobs:
         uses: $/
         env:
           GH_TOKEN: ${{ github.token }}
-          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
-          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
-          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+          # Engine-generated environment bindings (direct workflow only)
         with:
           phase: delivery-run
           operation: ${{ inputs.operation }}
@@ -569,9 +555,7 @@ jobs:
         uses: $/
         env:
           GH_TOKEN: ${{ github.token }}
-          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
-          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
-          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+          # Engine-generated environment bindings (direct workflow only)
         with:
           phase: delivery-run
           operation: ${{ inputs.operation }}
@@ -627,9 +611,7 @@ jobs:
         uses: $/
         env:
           GH_TOKEN: ${{ github.token }}
-          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
-          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
-          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+          # Engine-generated environment bindings (direct workflow only)
         with:
           phase: delivery-run
           operation: ${{ inputs.operation }}
@@ -728,9 +710,7 @@ jobs:
         uses: $/
         env:
           GH_TOKEN: ${{ github.token }}
-          CI_SLOT_0: ${{ matrix.bindings[0].source == 'secret' && secrets[matrix.bindings[0].name] || matrix.bindings[0].source == 'variable' && vars[matrix.bindings[0].name] || '' }}
-          CI_SLOT_1: ${{ matrix.bindings[1].source == 'secret' && secrets[matrix.bindings[1].name] || matrix.bindings[1].source == 'variable' && vars[matrix.bindings[1].name] || '' }}
-          CI_SLOT_2: ${{ matrix.bindings[2].source == 'secret' && secrets[matrix.bindings[2].name] || matrix.bindings[2].source == 'variable' && vars[matrix.bindings[2].name] || '' }}
+          # Engine-generated environment bindings (direct workflow only)
         with:
           phase: delivery-run
           operation: ${{ inputs.operation }}

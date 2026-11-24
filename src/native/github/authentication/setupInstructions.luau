@@ -84,7 +84,7 @@ function SetupInstructions.Values(
 		end
 	end
 
-	if configuration.enabled then
+	if configuration.enabled and configuration.roles.bootstrap_token then
 		mergeRepository(configuration.roles.bootstrap_token.permissions.repository)
 	end
 	local execution = Publication.Record(Toml.decode(Fs.readFileToString("config/ci/execution.toml")))
