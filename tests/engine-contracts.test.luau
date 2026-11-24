@@ -127,7 +127,7 @@ local expected: { [string]: { string } } = {
     publish_external = { "resolve", "plan", "authorize", "execute", "test" },
     report = { "execute", "plan", "test", "publish_contents", "publish_issues", "publish_credential", "publish_pages", "publish_external" },
     cleanup = { "report" },
-    validate = { "resolve", "cleanup" },
+    validate = { "resolve", "report", "cleanup" },
 }
 local labels: { [string]: string } = {
     resolve = "Resolve", prepare = "Prepare", discover = "Discover",
@@ -228,5 +228,34 @@ check("local identity stays explicit", RunIdentity.Resolve(localRun, 200) == "lo
 check("producer and publisher receive plan paths", workflow:find("CI_DELIVERY_BUNDLE_PATH: ${{ needs.plan.outputs.delivery_artifact }}", 1, true) ~= nil)
 local _, consumers = workflow:gsub("CI_DELIVERY_BUNDLE_PATH: %$%{%{ needs%.plan%.outputs%.delivery_destination %}%}", "")
 check("all publication lanes consume admitted bundle path", consumers == 5)
+
+-- Real command execution verifies that diagnostic failure is not success,
+-- but only its dependent components are blocked.
+local Components = require("@engine/execution/components")
+local Process = require("@lute/process")
+local marker = "build/deferred-validation-fixture-" .. tostring(Process.pid())
+Fs.createDirectory(marker, { makeParents = true })
+local first = make("fixture/check", { "fixture.checked" }, {}, { command = { "bash", "-c", "exit 79" } })
+local dependent = make("fixture/dependent", { "fixture.dependent" }, { "fixture.checked" }, { command = { "bash", "-c", "touch " .. marker .. "/dependent" } })
+local independent = make("fixture/independent", { "fixture.independent" }, {}, { command = { "bash", "-c", "touch " .. marker .. "/independent" } })
+local fixtures = { ["fixture/check"] = first, ["fixture/dependent"] = dependent, ["fixture/independent"] = independent }
+local fixturePlan = Graph.Plan(fixtures, { "*" }, "push", "readonly")
+check("deferred check still fails validation", not Components.Run(fixturePlan.ordered, fixtures, fixturePlan.needs))
+check("independent work survives deferred check", Fs.exists(marker .. "/independent"))
+check("failed dependency does not execute", not Fs.exists(marker .. "/dependent"))
+Fs.remove(marker .. "/independent")
+first.command = { "bash", "-c", "exit 1" }
+rejects("ordinary command failure remains fatal", function() Components.Run(fixturePlan.ordered, fixtures, fixturePlan.needs) end)
+check("fatal failure stops execution", not Fs.exists(marker .. "/independent"))
+first.command = { "bash", "-c", "exit 0" }
+check("successful execution permits validation", Components.Run(fixturePlan.ordered, fixtures, fixturePlan.needs))
+check("successful dependency permits execution", Fs.exists(marker .. "/dependent"))
+Fs.remove(marker .. "/dependent")
+Fs.remove(marker .. "/independent")
+check("remove empty test fixture directory", Process.run({ "rmdir", marker }).ok)
+local _, gates = workflow:gsub("needs%.execute%.outputs%.validation_passed == 'true'", "")
+check("every publisher checks deferred validation", gates == 5)
+check("final check requires aggregate result", workflow:find('test "$VALIDATION_PASSED" = true', 1, true) ~= nil)
+check("composite exports validation result", action:find("value: ${{ steps.engine.outputs.validation_passed }}", 1, true) ~= nil)
 
 print("CI Engine: " .. passed .. " contract and planner tests passed")

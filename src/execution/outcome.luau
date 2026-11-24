@@ -1,7 +1,7 @@
 -- Adapted from Template PR #43: ci/bootstrap/outcomes/outcome.luau
 --!strict
 
-local Outcome = { skippedExitCode = 78 }
+local Outcome = { skippedExitCode = 78, validationExitCode = 79 }
 
 export type Value = "passed" | "skipped" | "failed"
 

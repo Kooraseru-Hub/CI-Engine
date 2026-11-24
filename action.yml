@@ -59,6 +59,9 @@ outputs:
   host_artifact:
     description: Native host-test plan host_artifact
     value: ${{ steps.engine.outputs.host_artifact }}
+  validation_passed:
+    description: Whether every executed validation component passed
+    value: ${{ steps.engine.outputs.validation_passed }}
   publication:
     description: Whether this operation permits publication
     value: ${{ steps.engine.outputs.publication }}

@@ -24,8 +24,19 @@ local function missingOutputs(outputs: { string }): { string }
     return missing
 end
 
-function Components.Run(ordered: { string }, components: { [string]: any }): ()
+function Components.Run(ordered: { string }, components: { [string]: any }, needs: { [string]: { string } }): boolean
+    local unavailable: { [string]: boolean } = {}
+    local passed = true
     for _, identity in ordered do
+        local blocked = false
+        for _, dependency in needs[identity] or {} do
+            if unavailable[dependency] then blocked = true; break end
+        end
+        if blocked then
+            unavailable[identity] = true
+            print("CI Engine: " .. identity .. ": blocked by failed dependency")
+            continue
+        end
         local component = components[identity]
         if component.boundary ~= "read" or #component.credentials > 0 then
             fail("privileged work is unavailable in read-only executor: " .. identity)
@@ -62,6 +73,13 @@ function Components.Run(ordered: { string }, components: { [string]: any }): ()
             -- execution as success without the consumer explicitly opting in.
             fail(identity .. ": skipped without a configured skip policy")
         end
+        if result.exitcode == Outcome.validationExitCode then
+            unavailable[identity] = true
+            passed = false
+            print("CI Engine: " .. identity .. ": validation failed; continuing independent components")
+            print("::endgroup::")
+            continue
+        end
         if outcome ~= "passed" then
             fail(identity .. ": command failed (" .. tostring(result.exitcode) .. "): " .. command[1])
         end
@@ -71,6 +89,7 @@ function Components.Run(ordered: { string }, components: { [string]: any }): ()
         end
         print("::endgroup::")
     end
+    return passed
 end
 
 return Components
