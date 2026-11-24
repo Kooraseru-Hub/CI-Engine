@@ -54,7 +54,7 @@ test("delivery process executes with selected credentials and fails before invok
   for(let i=0;i<6;i++)assert.equal(process.env["CI_EXTERNAL_ROLE_"+i],"fixture-"+i);
   assert.ok(!Object.keys(process.env).some(key=>key.startsWith("CI_BIND_")||key==="CI_EXTERNAL_UNUSED"));
   console.log("component invoked");
- `]};
+ `.replace(/\n/g," ")]};
  const values=Object.fromEntries(bindings.map((b,i)=>["CI_BIND_"+b.source.toUpperCase()+"_"+b.name,"fixture-"+i]));
  const transport={...process.env,...env,...values,CI_DELIVERY_LANE:"external",CI_DELIVERY_ENTRY:JSON.stringify(raw),CI_DELIVERY_OPERATION:"publish",CI_BIND_SECRET_UNRELATED:"unused",CI_EXTERNAL_UNUSED:"unused"};
  const script=path.join(__dirname,"../src/adapters/github/delivery.cjs");
