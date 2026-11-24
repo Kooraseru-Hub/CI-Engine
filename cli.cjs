@@ -30,6 +30,8 @@ async function main() {
     const file = fs.realpathSync(path.resolve(renderer));
     if (!file.startsWith(root + path.sep)) throw new Error("Native renderer escapes the component directory");
     execute(process.execPath, [file, ...args.slice(2)]);
+  } else if (command === "sync-workflow") {
+    require("./src/adapters/local/workflow.cjs").syncWorkflow(process.cwd(), __dirname, args.includes("--check"));
   } else if (command === "sync-inputs") {
     require("./src/adapters/local/inputs.cjs").syncInputs(process.cwd(), args.includes("--check"));
   } else {

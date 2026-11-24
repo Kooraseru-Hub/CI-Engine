@@ -10,7 +10,7 @@ Read-only operations declare component patterns and optional `hostTests`. Native
 
 ## Delivery contract
 
-The plan declares `jobs` with an identity, permission lane, environment, command argument vector, optional nonsecret environment, and up to three explicit named credential bindings. It may also declare an artifact source/destination and a read-only candidate preparation command. The supported static permission lanes are contents, issues, credential, pages, and external (PR comment authority). Pages uses job-scoped OIDC; credential values never enter the plan or artifacts. Candidate code is compiled without publishing credentials and the publisher runs on a fresh immutable trusted checkout. The native planner derives publication jobs from component contracts and configured native permissions.
+The plan declares `jobs` with an identity, permission lane, environment, command argument vector, optional nonsecret environment, and explicit named credential bindings. It may also declare an artifact source/destination and a read-only candidate preparation command. The supported static permission lanes are contents, issues, credential, pages, and external (PR comment authority). Pages uses job-scoped OIDC; credential values never enter the plan or artifacts. Candidate code is compiled without publishing credentials and the publisher runs on a fresh immutable trusted checkout. The native planner derives publication jobs from component contracts and configured native permissions.
 
 ## Optional observation API
 
@@ -20,6 +20,12 @@ The event-side client at the pinned engine revision exposes `connect`, `status <
 
 The managed CLI stages the pinned engine for act and simulates dispatch admission locally. It executes the same read-only graph, omitting hosted Windows runners. Native build bundles include a verified build plan and provenance; the adapter exports manifest-owned products only after successful execution. No deployment or remote branch generation occurs locally.
 
-### Reusable-workflow credential transport
+### Environment credential delivery
 
-GitHub requires environment secret names to be forwarded by reusable-workflow callers. The workflow exposes only `CI_SECRET_0`, `CI_SECRET_1` and `CI_SECRET_2`. Consumers declare their credential roles and map them to these names within each protected environment; the caller forwards the fixed names explicitly. The same slot can hold different credentials in different environments. Never put credentials at repository scope to satisfy forwarding, and never pass the complete secrets context. The selected job receives only its declared bindings. Variables retain consumer-defined names. Provider-specific names and configuration belong to the consumer, not the engine.
+For hosted dispatch, install the engine at an immutable revision and run `CI Engine sync-workflow` through the managed dependency loader. Commit the generated `.github/workflows/bootstrap.yml` alongside configuration changes; `sync-workflow --check` verifies conformance. Event entry points continue to dispatch independent `ci-request` runs. The generated controller is a direct GitHub job graph, with execution delegated to the pinned engine composite action. No temporary workflow or branch is created during hosted execution.
+
+Declare role-to-name bindings in `config/credentials.json` under `environments`, using `secrets.NAME` or `vars.NAME` aliases. Use protected environments and preserve existing GitHub credential names. The generator emits name-specific step expressions gated by the authorized environment and matrix selection. Values never enter the plan, job outputs, artifacts, or a serialized inventory. The delivery adapter exposes only selected roles to the component, fails on missing required bindings, and supports explicitly optional bindings (`required: false`) in custom plans. No engine-side credential inventory, fixed slot count, or inherited secret context is required.
+
+GitHub's reusable workflow boundary can hide environment secrets unless the caller explicitly forwards the names. The shared reusable workflow remains available for smoke/read-only and credential-free execution; it deliberately fails if used for a required named credential. Direct environment jobs avoid that forwarding boundary. GitHub's own environment secret limits still apply.
+
+The generated YAML is a platform adapter, not consumer business logic. Configuration owns names, roles and environments; the engine owns scheduling, authorization and execution.

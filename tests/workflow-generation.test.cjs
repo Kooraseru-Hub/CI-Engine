@@ -1,0 +1,23 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
+const {renderWorkflow,bindingLines}=require("../src/adapters/local/workflow.cjs");
+const template=fs.readFileSync(path.join(__dirname,"../.github/workflows/bootstrap.yml"),"utf8");
+const revision={repository:"example/engine",sha:"a".repeat(40),workflow:"bootstrap.yml"};
+test("generated controller maps every declared name directly to its protected job",()=>{
+ const bindings=Object.fromEntries(Array.from({length:9},(_,i)=>["role"+i,(i%2?"vars.":"secrets.")+"EXAMPLE_"+i]));
+ const environments={"publish-a":bindings,"publish-b":{shared:"secrets.EXAMPLE_0"}};
+ const lines=bindingLines(environments);
+ assert.equal(lines.length,9);
+ assert.match(lines[0],/matrix\.environment == 'publish-a' \|\| matrix\.environment == 'publish-b'/);
+ assert.match(lines[0],/contains\(matrix\.secret_names, 'EXAMPLE_0'\)/);
+ assert.match(lines[0],/secrets\.EXAMPLE_0/);
+ const workflow=renderWorkflow(template,revision,environments);
+ assert.match(workflow,/repository_dispatch:\n    types: \[ci-request\]/);
+ assert.ok(!workflow.includes("workflow_call:")&&!workflow.includes("CI_SLOT_")&&!workflow.includes("toJSON(secrets)")&&!workflow.includes("secrets: inherit"));
+ assert.equal(workflow.split("CI_BIND_SECRET_EXAMPLE_0:").length-1,5);
+ assert.ok(workflow.includes("uses: "+revision.repository+"@"+revision.sha));
+ assert.ok(workflow.includes("toJSON(github.event.client_payload)"));
+ assert.equal(workflow,renderWorkflow(template,revision,{"publish-b":environments["publish-b"],"publish-a":bindings}));
+ assert.throws(()=>bindingLines({"bad'":bindings}),/Invalid credential environment/);
+ assert.throws(()=>bindingLines({"publish-a":{bad:"secrets.X' || true"}}),/Invalid environment credential reference/);
+});
