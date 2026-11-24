@@ -89,3 +89,14 @@ test("Pages readiness rejects malformed IDs without querying the API", t => {
   assert.equal(attempt.calls, 0);
   assert.match(attempt.stdout, /did not return a valid artifact ID/);
 });
+
+
+test("Pages publication uses Node 24 action versions with the locked transitive uploader", () => {
+  const lock = fs.readFileSync(path.join(__dirname, "../.github/workflows/actions.lock"), "utf8");
+  assert.match(workflow, /uses: actions\/upload-pages-artifact@v5/);
+  assert.match(workflow, /uses: actions\/deploy-pages@v5/);
+  assert.match(lock, /actions\/upload-pages-artifact@v5/);
+  assert.match(lock, /actions\/deploy-pages@v5/);
+  assert.match(lock, /actions\/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f/);
+  assert.doesNotMatch(lock, /actions\/(?:upload-pages-artifact|deploy-pages)@v4|ea165f8d65b6e75b540449e92b4886f43607fa02/);
+});
