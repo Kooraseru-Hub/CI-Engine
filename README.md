@@ -19,3 +19,7 @@ The event-side client at the pinned engine revision exposes `connect`, `status <
 ## Local execution
 
 The managed CLI stages the pinned engine for act and simulates dispatch admission locally. It executes the same read-only graph, omitting hosted Windows runners. Native build bundles include a verified build plan and provenance; the adapter exports manifest-owned products only after successful execution. No deployment or remote branch generation occurs locally.
+
+### Reusable-workflow credential transport
+
+GitHub requires environment secret names to be forwarded by reusable-workflow callers. The workflow exposes only `CI_SECRET_0`, `CI_SECRET_1` and `CI_SECRET_2`. Consumers declare their credential roles and map them to these names within each protected environment; the caller forwards the fixed names explicitly. The same slot can hold different credentials in different environments. Never put credentials at repository scope to satisfy forwarding, and never pass the complete secrets context. The selected job receives only its declared bindings. Variables retain consumer-defined names. Provider-specific names and configuration belong to the consumer, not the engine.

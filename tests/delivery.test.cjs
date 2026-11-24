@@ -13,8 +13,8 @@ test("delivery plan is typed and scoped to static permission lanes",()=>{
  for(const raw of [{jobs:[{...job,lane:"all"}]},{jobs:[job,job]},{jobs:[{...job,env:{GH_TOKEN:"x"}}]},{jobs:[{...job,bindings:[{role:"PATH",source:"secret",name:"KEY"}]}]},{jobs:[job],artifact:"build/../source",destination:"build/out"}])assert.throws(()=>normalize(raw));
 });
 test("preview preparation and publisher use distinct checkout and artifact paths",()=>{
- const result=normalize({artifact:"build/ci-candidate/build/site",destination:"build/preview-candidate",prepare:{ref:sha,command:["node","build.js"],env:{DOCS_BASE:"/repo/"}},jobs:[{...job,id:"preview",lane:"external",bindings:[{role:"CI_EXTERNAL_TOKEN",source:"secret",name:"CLOUDFLARE_API_TOKEN"}]}]});
- assert.equal(result.prepare.ref,sha);assert.equal(result.jobs[0].bindings[0].name,"CLOUDFLARE_API_TOKEN");
+ const result=normalize({artifact:"build/ci-candidate/build/site",destination:"build/preview-candidate",prepare:{ref:sha,command:["node","build.js"],env:{DOCS_BASE:"/repo/"}},jobs:[{...job,id:"preview",lane:"external",bindings:[{role:"CI_EXTERNAL_TOKEN",source:"secret",name:"CI_SECRET_0"}]}]});
+ assert.equal(result.prepare.ref,sha);assert.equal(result.jobs[0].bindings[0].name,"CI_SECRET_0");
  assert.throws(()=>normalize({jobs:[job],artifact:"build/source",destination:"build/out",prepare:{ref:sha,command:["node","build.js"]}}),/isolated/);
 });
 
@@ -26,4 +26,12 @@ test("review authority is distinct and can only publish an isolated external art
  assert.equal(normalizeReview(raw,review).jobs[0].lane,"external");
  assert.throws(()=>normalizeReview({...raw,jobs:[job]},review));assert.throws(()=>normalizeReview({...raw,prepare:{...raw.prepare,ref:"b".repeat(40)}},review));
  assert.throws(()=>normalize({...raw,jobs:[{...job,lane:"external",env:{CI_REVIEW_PR:"9"}}]}));
+});
+
+
+test("reusable workflow declares only generic credential transport slots",()=>{
+ const fs=require("node:fs"),path=require("node:path");
+ const workflow=fs.readFileSync(path.join(__dirname,"../.github/workflows/bootstrap.yml"),"utf8");
+ const declarations=workflow.split("\n    secrets:\n")[1].split("\n\n")[0];
+ assert.deepEqual([...declarations.matchAll(/^      ([A-Z0-9_]+):$/gm)].map(x=>x[1]),["CI_SECRET_0","CI_SECRET_1","CI_SECRET_2"]);
 });

@@ -17,18 +17,17 @@ on:
         type: boolean
         required: false
         default: false
+    # Fixed transport names, scoped to the selected publication environment.
+    # Consumers bind their own credential roles to these names.
     secrets:
-      CI_APP_PRIVATE_KEY:
-        description: Environment-scoped GitHub App key for repository ruleset sync
+      CI_SECRET_0:
+        description: Optional environment credential slot 0
         required: false
-      CI_TOKEN:
-        description: Environment-scoped token for Projects sync
+      CI_SECRET_1:
+        description: Optional environment credential slot 1
         required: false
-      CLOUDFLARE_API_TOKEN:
-        description: Environment-scoped Cloudflare Pages publication credential
-        required: false
-      DEVFORUM_USER_API_KEY:
-        description: Environment-scoped DevForum asset publication credential
+      CI_SECRET_2:
+        description: Optional environment credential slot 2
         required: false
 
 
