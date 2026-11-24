@@ -198,4 +198,35 @@ check("Execute explicitly restricts its repository token", execution:find("conte
 local protectedPlan = Graph.Plan({ ["test/publish"] = privileged }, { "*" }, "repository_dispatch", "protected")
 check("protected component uses normal dependency planner", #protectedPlan.ordered == 1)
 
+-- Reproduce a partial retry: the producer remains on attempt 1 while the
+-- publisher runs on attempt 2. The same identity is used to find and verify
+-- the manifests; unrelated runs and future attempts must fail closed.
+local RunIdentity = require("@engine/native/github/workflows/runIdentity")
+local hosted = { GITHUB_ACTIONS = "true", GITHUB_RUN_ID = "45360740102", GITHUB_RUN_ATTEMPT = "1" }
+local producer = RunIdentity.Resolve(hosted, 100)
+local path = "build/run/" .. producer .. "/transport/bundles"
+local retried = table.clone(hosted)
+retried.GITHUB_RUN_ATTEMPT = "2"
+retried.CI_DELIVERY_BUNDLE_PATH = path
+check("partial retry uses producer provenance", RunIdentity.Resolve(retried, 200) == producer)
+check("fresh plan uses current attempt", RunIdentity.Resolve({ GITHUB_ACTIONS = "true", GITHUB_RUN_ID = "45360740102", GITHUB_RUN_ATTEMPT = "2" }, 200) == "45360740102-2")
+check("rebuilt producer uses its admitted plan", RunIdentity.Resolve(retried, 300) == producer)
+for _, invalid in { "123-1", "45360740102-3", "45360740102-0", "../escape" } do
+    local fixture = table.clone(retried)
+    fixture.CI_DELIVERY_BUNDLE_PATH = "build/run/" .. invalid .. "/transport/bundles"
+    if invalid ~= "../escape" then
+        rejects("reject unrelated or future bundle " .. invalid, function() RunIdentity.Resolve(fixture, 200) end)
+    end
+end
+local custom = table.clone(retried)
+custom.CI_DELIVERY_BUNDLE_PATH = "build/preview-candidate"
+check("custom artifact paths do not change native identity", RunIdentity.Resolve(custom, 200) == "45360740102-2")
+local localRun = table.clone(retried)
+localRun.ACT = "true"
+localRun.CI_LOCAL_RUN_ID = "local-fixture"
+check("local identity stays explicit", RunIdentity.Resolve(localRun, 200) == "local-fixture")
+check("producer and publisher receive plan paths", workflow:find("CI_DELIVERY_BUNDLE_PATH: ${{ needs.plan.outputs.delivery_artifact }}", 1, true) ~= nil)
+local _, consumers = workflow:gsub("CI_DELIVERY_BUNDLE_PATH: %$%{%{ needs%.plan%.outputs%.delivery_destination %}%}", "")
+check("all publication lanes consume admitted bundle path", consumers == 5)
+
 print("CI Engine: " .. passed .. " contract and planner tests passed")

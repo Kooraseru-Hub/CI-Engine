@@ -7,6 +7,7 @@ local Json = require("@formats/json")
 local Hash = require("@formats/hash")
 local Glob = require("@ci/bootstrap/discovery/glob")
 local Contract = require("@ci/bootstrap/contracts/contract")
+local RunIdentity = require("./runIdentity")
 
 local Artifacts = {}
 export type File = { path: string, size: number, sha256: string }
@@ -14,9 +15,7 @@ export type Manifest = { version: number, runId: string, source: string, workspa
 
 --- Select one safe identity for all output produced by this invocation.
 function Artifacts.RunId(): string
-	local id = Process.env.CI_LOCAL_RUN_ID or Process.env.CI_RUN_ID or `{Process.env.GITHUB_RUN_ID or "cli"}-{Process.env.GITHUB_RUN_ATTEMPT or tostring(Process.pid())}`
-	if not id:match("^[%w_-]+$") then error("Unsafe execution run identity", 0) end
-	return id
+	return RunIdentity.Resolve(Process.env, Process.pid())
 end
 
 --- Resolve a stage directory independently of product output paths.

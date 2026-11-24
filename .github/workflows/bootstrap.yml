@@ -283,6 +283,7 @@ jobs:
     name: Execute
     needs: [resolve, prepare, plan, authorize]
     env:
+      CI_DELIVERY_BUNDLE_PATH: ${{ needs.plan.outputs.delivery_artifact }}
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
       CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
@@ -337,6 +338,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ci-delivery-input
+          overwrite: true
           path: ${{ needs.plan.outputs.delivery_artifact }}
           if-no-files-found: error
           include-hidden-files: true
@@ -354,6 +356,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ci-host-test-input
+          overwrite: true
           path: ${{ needs.plan.outputs.host_artifact }}
           if-no-files-found: error
           retention-days: 7
@@ -362,6 +365,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: code-review-findings
+          overwrite: true
           path: build/code-review/
           if-no-files-found: ignore
           retention-days: 7
@@ -370,6 +374,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: rules-audit-findings
+          overwrite: true
           path: build/rules-audit/
           if-no-files-found: ignore
           retention-days: 7
@@ -423,6 +428,7 @@ jobs:
       name: ${{ matrix.environment }}
       deployment: false
     env:
+      CI_DELIVERY_BUNDLE_PATH: ${{ needs.plan.outputs.delivery_destination }}
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
       CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
@@ -475,6 +481,7 @@ jobs:
       name: ${{ matrix.environment }}
       deployment: false
     env:
+      CI_DELIVERY_BUNDLE_PATH: ${{ needs.plan.outputs.delivery_destination }}
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
       CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
@@ -526,6 +533,7 @@ jobs:
       name: ${{ matrix.environment }}
       deployment: false
     env:
+      CI_DELIVERY_BUNDLE_PATH: ${{ needs.plan.outputs.delivery_destination }}
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
       CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
@@ -582,6 +590,7 @@ jobs:
       name: ${{ matrix.environment }}
       url: ${{ steps.deployment.outputs.page_url }}
     env:
+      CI_DELIVERY_BUNDLE_PATH: ${{ needs.plan.outputs.delivery_destination }}
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
       CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
@@ -680,6 +689,7 @@ jobs:
       name: ${{ matrix.environment }}
       deployment: false
     env:
+      CI_DELIVERY_BUNDLE_PATH: ${{ needs.plan.outputs.delivery_destination }}
       CI_ORIGIN_EVENT: ${{ needs.resolve.outputs.event }}
       CI_ORIGIN_REF: ${{ needs.resolve.outputs.ref }}
       CI_ORIGIN_SHA: ${{ needs.resolve.outputs.sha }}
