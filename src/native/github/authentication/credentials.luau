@@ -286,7 +286,11 @@ function Credentials.Get(
 	role: string,
 	secretOnly: boolean?
 ): string?
-	if self.inventory and (configuration.roles[role].selection == "capability"
+	local definition = configuration.roles[role]
+	if not definition then
+		return nil
+	end
+	if self.inventory and (definition.selection == "capability"
 		or configuration.profiles["source-ci"].credentialProvider == "oidc" or configuration.profiles["source-ci"].usesCommands) then
 		self:Resolve(configuration)
 	end
@@ -326,6 +330,10 @@ function Credentials.WarnUnavailable(
 	for _, id in roles do
 		local role = configuration.roles[id]
 		if self:Get(configuration, id) then
+			continue
+		end
+		if not role then
+			print(`::warning::{task} on {profile}: credential role {id} is not declared`)
 			continue
 		end
 		local requirements: { string } = {}

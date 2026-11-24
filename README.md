@@ -29,3 +29,5 @@ Declare role-to-name bindings in `config/credentials.json` under `environments`,
 GitHub's reusable workflow boundary can hide environment secrets unless the caller explicitly forwards the names. The shared reusable workflow remains available for smoke/read-only and credential-free execution; it deliberately fails if used for a required named credential. Direct environment jobs avoid that forwarding boundary. GitHub's own environment secret limits still apply.
 
 The generated YAML is a platform adapter, not consumer business logic. Configuration owns names, roles and environments; the engine owns scheduling, authorization and execution.
+
+GitHub-native adapters may request App, token, or project/ruleset roles when that capability is selected. Those roles are not mandatory for generic operations. For APIs beyond the job token's supported permission lanes, use a narrowly scoped GitHub App installation token, PAT, or external credential in a protected environment; the engine does not grant organization administration by default.

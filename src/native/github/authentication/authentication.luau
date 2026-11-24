@@ -115,8 +115,9 @@ function Authentication.Acquire(
 	local id = credentials:Get(configuration, "app_id")
 	local key = credentials:Get(configuration, "app_private_key", true)
 
-	if id and key then
-		local ok, access = xpcall(appAccess, tostring, id, key, repository, configuration.roles.bootstrap_token.permissions.repository)
+	local bootstrapRole = configuration.roles.bootstrap_token
+	if id and key and bootstrapRole then
+		local ok, access = xpcall(appAccess, tostring, id, key, repository, bootstrapRole.permissions.repository)
 		if ok then
 			print("::notice::Using a repository-scoped GitHub App installation token for branch bootstrap")
 			return access

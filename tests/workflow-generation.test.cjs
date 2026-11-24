@@ -17,6 +17,9 @@ test("generated controller maps every declared name directly to its protected jo
  assert.equal(workflow.split("CI_BIND_SECRET_EXAMPLE_0:").length-1,5);
  assert.ok(workflow.includes("uses: "+revision.repository+"@"+revision.sha));
  assert.ok(workflow.includes("toJSON(github.event.client_payload)"));
+ assert.match(workflow,/^run-name: .*request \{0\}/m);
+ assert.match(workflow,/^concurrency:/m);
+ assert.ok(workflow.includes("(github.event.client_payload.publish == true)"));
  assert.equal(workflow,renderWorkflow(template,revision,{"publish-b":environments["publish-b"],"publish-a":bindings}));
  assert.throws(()=>bindingLines({"bad'":bindings}),/Invalid credential environment/);
  assert.throws(()=>bindingLines({"publish-a":{bad:"secrets.X' || true"}}),/Invalid environment credential reference/);

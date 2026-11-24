@@ -81,7 +81,7 @@ function load(file = "config/credentials.json") {
 		const transports = sources.filter(source => source.provider !== "command");
 		if (transports.length > 1) throw new Error("Choose one hosted credential transport per profile");
 		const [transport] = transports;
-		if (transport?.provider === "environment") {
+		if (transport?.provider === "environment" && profile.delegate) {
 			const bootstrap = catalog.environments[profile.bootstrapEnvironment];
 			const reporting = catalog.environments[profile.reportingEnvironment];
 			// The bootstrap identity must be complete but its GitHub names are data, not workflow source.
