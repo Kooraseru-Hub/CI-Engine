@@ -45,3 +45,24 @@ test("delivery binds arbitrary named credentials only to selected roles",()=>{
  const optional=normalize({jobs:[{...job,bindings:[{...bindings[0],required:false}]}]}).jobs[0];
  assert.equal(bindCredentials(optional,{}).CI_CREDENTIAL_ROLE_0,undefined);
 });
+test("delivery process executes with selected credentials and fails before invoking a component if required credentials are missing",()=>{
+ const {spawnSync}=require("node:child_process");
+ const path=require("node:path");
+ const bindings=Array.from({length:6},(_,i)=>({role:"CI_EXTERNAL_ROLE_"+i,source:i%2?"variable":"secret",name:"EXAMPLE_"+i}));
+ const raw={...job,lane:"external",bindings,command:[process.execPath,"-e",`
+  const assert=require("node:assert/strict");
+  for(let i=0;i<6;i++)assert.equal(process.env["CI_EXTERNAL_ROLE_"+i],"fixture-"+i);
+  assert.ok(!Object.keys(process.env).some(key=>key.startsWith("CI_BIND_")||key==="CI_EXTERNAL_UNUSED"));
+  console.log("component invoked");
+ `]};
+ const values=Object.fromEntries(bindings.map((b,i)=>["CI_BIND_"+b.source.toUpperCase()+"_"+b.name,"fixture-"+i]));
+ const transport={...process.env,...env,...values,CI_DELIVERY_LANE:"external",CI_DELIVERY_ENTRY:JSON.stringify(raw),CI_DELIVERY_OPERATION:"publish",CI_BIND_SECRET_UNRELATED:"unused",CI_EXTERNAL_UNUSED:"unused"};
+ const script=path.join(__dirname,"../src/adapters/github/delivery.cjs");
+ const success=spawnSync(process.execPath,[script,"delivery-run"],{env:transport,encoding:"utf8"});
+ assert.equal(success.status,0,success.stderr);
+ assert.match(success.stdout,/component invoked/);
+ const failure=spawnSync(process.execPath,[script,"delivery-run"],{env:{...transport,CI_BIND_SECRET_EXAMPLE_0:""},encoding:"utf8"});
+ assert.equal(failure.status,1);
+ assert.match(failure.stderr,/Missing required secret EXAMPLE_0/);
+ assert.doesNotMatch(failure.stdout,/component invoked/);
+});

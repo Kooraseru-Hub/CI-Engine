@@ -66,7 +66,7 @@ function normalize(raw){
       if(!Array.isArray(job.bindings))throw Error("Invalid credential bindings");
       const roles=new Set();
       for(const b of job.bindings){
-        if(!b||!NAME.test(b.role||"")||!NAME.test(b.name||"")||!["secret","variable"].includes(b.source)||roles.has(b.role))throw Error("Invalid credential binding");
+        if(!b||!NAME.test(b.role||"")||!NAME.test(b.name||"")||!["secret","variable"].includes(b.source)||roles.has(b.role)||b.role==="CI_CREDENTIAL_ENVIRONMENT")throw Error("Invalid credential binding");
         if(!/^CI_CREDENTIAL_[A-Z0-9_]+$/.test(b.role)&&!/^CI_EXTERNAL_[A-Z0-9_]+$/.test(b.role)) throw Error("Invalid credential binding role");
         if(b.required!==undefined&&typeof b.required!=="boolean")throw Error("Invalid credential requirement");
         roles.add(b.role);result.bindings.push({role:b.role,source:b.source,name:b.name.toUpperCase(),required:b.required!==false});

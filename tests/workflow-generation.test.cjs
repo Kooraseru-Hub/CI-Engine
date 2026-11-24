@@ -1,6 +1,6 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
-const {renderWorkflow,bindingLines}=require("../src/adapters/local/workflow.cjs");
+const {renderWorkflow,bindingLines,syncWorkflow}=require("../src/adapters/local/workflow.cjs");
 const template=fs.readFileSync(path.join(__dirname,"../.github/workflows/bootstrap.yml"),"utf8");
 const revision={repository:"example/engine",sha:"a".repeat(40),workflow:"bootstrap.yml"};
 test("generated controller maps every declared name directly to its protected job",()=>{
@@ -20,4 +20,31 @@ test("generated controller maps every declared name directly to its protected jo
  assert.equal(workflow,renderWorkflow(template,revision,{"publish-b":environments["publish-b"],"publish-a":bindings}));
  assert.throws(()=>bindingLines({"bad'":bindings}),/Invalid credential environment/);
  assert.throws(()=>bindingLines({"publish-a":{bad:"secrets.X' || true"}}),/Invalid environment credential reference/);
+});
+test("a generic consumer can generate and stage its controller without native GitHub roles or schemas",t=>{
+ const root=fs.mkdtempSync(path.join(require("node:os").tmpdir(),"engine-generate-"));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const consumer=path.join(root,"consumer"),pkg=path.join(root,"engine");
+ fs.mkdirSync(path.join(consumer,"config"),{recursive:true});
+ fs.mkdirSync(path.join(pkg,".github/workflows"),{recursive:true});
+ fs.writeFileSync(path.join(pkg,".dependency-revision.json"),JSON.stringify(revision));
+ fs.writeFileSync(path.join(pkg,".github/workflows/bootstrap.yml"),template);
+ const config=path.join(consumer,"config/credentials.json");
+ fs.writeFileSync(config,JSON.stringify({environments:{release:{custom:"secrets.ARBITRARY_NAME"}}}));
+ assert.throws(()=>syncWorkflow(consumer,pkg,true),/stale/);
+ assert.equal(syncWorkflow(consumer,pkg),true);
+ assert.equal(syncWorkflow(consumer,pkg,true),false);
+ const file=path.join(consumer,".github/workflows/bootstrap.yml");
+ assert.match(fs.readFileSync(file,"utf8"),/secrets\.ARBITRARY_NAME/);
+ fs.writeFileSync(config,JSON.stringify({environments:{release:{custom:"secrets.ARBITRARY_NAME",another:"vars.ANOTHER_NAME"}}}));
+ assert.throws(()=>syncWorkflow(consumer,pkg,true),/stale/);
+ assert.equal(syncWorkflow(consumer,pkg),true);
+ const generated=fs.readFileSync(file,"utf8");
+ assert.match(generated,/vars\.ANOTHER_NAME/);
+ require("../src/adapters/local/stage.cjs").prepareStagedWorkflow(file,pkg);
+ assert.equal(fs.readFileSync(file,"utf8"),generated);
+ const staged=fs.readFileSync(path.join(consumer,".github/workflows/_act-entry.yml"),"utf8");
+ assert.match(staged,/uses: \.\/\.ci-engine-act/);
+ assert.match(staged,/repository_dispatch:/);
+ assert.ok(!staged.includes("uses: "+revision.repository+"@"+revision.sha));
 });
