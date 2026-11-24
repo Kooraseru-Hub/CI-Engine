@@ -27,6 +27,9 @@ on:
       CLOUDFLARE_API_TOKEN:
         description: Environment-scoped Cloudflare Pages publication credential
         required: false
+      DEVFORUM_USER_API_KEY:
+        description: Environment-scoped DevForum asset publication credential
+        required: false
 
 
 # Each executable job receives only the authority of its static permission lane.
