@@ -64,6 +64,7 @@ async function deliver(plan, { approval, io } = {}) {
     "A durable receipt store and explicit delivery transport are required");
   await io.validate(plan); // revalidate release identity, content, destination and author
   const receipt = await io.load(plan.key);
+  check(!receipt || receipt.releaseId === plan.releaseId, "Stored receipt refers to a different GitHub release");
   const matches = await io.find(plan);
   check(Array.isArray(matches) && matches.length <= 1, "Ambiguous announcement; refusing delivery");
   let existing = matches[0];

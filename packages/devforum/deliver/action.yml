@@ -1,0 +1,25 @@
+name: Deliver approved DevForum release reply
+description: Explicitly deliver a reviewed release announcement and persist its receipt
+inputs:
+  repository:
+    description: GitHub owner/repository
+    required: true
+  tag:
+    description: Exact published release tag
+    required: true
+  config:
+    description: Project destination and durable receipt location
+    required: true
+  approval:
+    description: Exact SHA-256 from the reviewed announcement draft
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        TAG: ${{ inputs.tag }}
+        CONFIG: ${{ inputs.config }}
+        APPROVAL: ${{ inputs.approval }}
+      run: node "$GITHUB_ACTION_PATH/../delivery.cjs" "$REPOSITORY" "$TAG" "$CONFIG" "$APPROVAL"

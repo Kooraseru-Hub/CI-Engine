@@ -52,3 +52,15 @@ test("rejects embedded Git metadata and symlinks before any branch is written", 
   await assert.rejects(f.run({ confirm: true }), /Unsafe generated entry/);
   assert.equal(git(f.remote, "for-each-ref", "--format=%(refname)"), "");
 });
+
+test("expected parent prevents overwriting a concurrent generated branch update",async t=>{
+  const f=await fixture(t);
+  await f.run({confirm:true});
+  const old=git(f.remote,"rev-parse","refs/heads/main");
+  await writeFile(path.join(f.directory,"main/README.md"),"Second");
+  await f.run({confirm:true,expectedHeads:{main:old}});
+  const head=git(f.remote,"rev-parse","refs/heads/main");
+  await writeFile(path.join(f.directory,"main/README.md"),"Stale");
+  await assert.rejects(f.run({confirm:true,expectedHeads:{main:old}}),/changed after preparation/);
+  assert.equal(git(f.remote,"rev-parse","refs/heads/main"),head);
+});
