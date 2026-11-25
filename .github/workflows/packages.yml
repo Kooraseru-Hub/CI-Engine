@@ -69,3 +69,26 @@ jobs:
         with:
           config: build/preview.toml
           directory: build/site
+  devforum:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - run: node --test packages/devforum/*.test.cjs
+      - run: |
+          mkdir -p build/forum
+          printf '%s\n' '{"destination":{"topicId":42,"postId":7}}' > build/forum/config.json
+          printf '%s\n' '![Image](upload://abc.png)' > build/forum/post.md
+          printf '%s' 'iVBORw0KGgo=' | base64 -d > build/forum/image.png
+      - uses: ./packages/devforum/post
+        with:
+          config: build/forum/config.json
+          file: build/forum/post.md
+      - uses: ./packages/devforum/upload
+        with:
+          file: build/forum/image.png

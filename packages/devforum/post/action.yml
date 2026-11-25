@@ -1,0 +1,33 @@
+name: DevForum post
+description: Rehearse or publish an existing public first post with verified PNGs
+inputs:
+  mode:
+    description: rehearse, prepare or publish
+    default: rehearse
+  config:
+    description: JSON file with destination.topicId and destination.postId
+    required: true
+  file:
+    description: Authored Markdown file
+    default: ''
+  snapshot:
+    description: SHA-256 snapshot returned by prepare
+    default: ''
+outputs:
+  result:
+    description: JSON result of rehearsal or preparation, or publication receipt
+    value: ${{ steps.post.outputs.result }}
+runs:
+  using: composite
+  steps:
+    - id: post
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        CONFIG: ${{ inputs.config }}
+        FILE: ${{ inputs.file }}
+        SNAPSHOT: ${{ inputs.snapshot }}
+      run: |
+        case "$MODE" in rehearse|prepare|publish) ;; *) exit 2;; esac
+        result=$(node "$GITHUB_ACTION_PATH/../post.cjs" "$MODE" "$CONFIG" "$FILE" "$SNAPSHOT")
+        printf 'result=%s\n' "$result" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,26 @@
+name: DevForum PNG upload
+description: Fingerprint or explicitly upload a native PNG
+inputs:
+  file:
+    description: PNG file path
+    required: true
+  confirm:
+    description: Explicit permission to upload
+    default: 'false'
+outputs:
+  result:
+    description: JSON fingerprint and optional native URL
+    value: ${{ steps.upload.outputs.result }}
+runs:
+  using: composite
+  steps:
+    - id: upload
+      shell: bash
+      env:
+        FILE: ${{ inputs.file }}
+        CONFIRM: ${{ inputs.confirm }}
+      run: |
+        args=("$FILE")
+        case "$CONFIRM" in true) args+=(--publish);; false) ;; *) exit 2;; esac
+        result=$(node "$GITHUB_ACTION_PATH/../upload.cjs" "${args[@]}")
+        printf 'result=%s\n' "$result" >> "$GITHUB_OUTPUT"
