@@ -1,0 +1,49 @@
+name: Documentation preview
+description: Rehearse, resolve, deploy or retire a Cloudflare Pages preview
+inputs:
+  mode:
+    description: rehearse, build-settings, manual-resolve, manual, native or retire
+    default: rehearse
+  config:
+    description: Consumer-relative TOML file with github.previews settings
+    required: true
+  directory:
+    description: Consumer-relative static site artifact
+    default: ''
+outputs:
+  enabled:
+    description: Whether PR preview building is enabled
+    value: ${{ steps.preview.outputs.enabled }}
+  base:
+    description: Site base path
+    value: ${{ steps.preview.outputs.base }}
+  site:
+    description: Site public origin
+    value: ${{ steps.preview.outputs.site }}
+  requested:
+    description: Resolved manual preview target
+    value: ${{ steps.preview.outputs.requested }}
+  sha:
+    description: Resolved source commit
+    value: ${{ steps.preview.outputs.sha }}
+  alias:
+    description: Resolved preview alias
+    value: ${{ steps.preview.outputs.alias }}
+  remove:
+    description: Whether to retire the alias
+    value: ${{ steps.preview.outputs.remove }}
+runs:
+  using: composite
+  steps:
+    - id: preview
+      shell: bash
+      env:
+        PREVIEW_MODE: ${{ inputs.mode }}
+        PREVIEW_CONFIG: ${{ inputs.config }}
+        PREVIEW_DIRECTORY: ${{ inputs.directory }}
+      run: |
+        case "$PREVIEW_MODE" in
+          rehearse|build-settings|manual-resolve|manual|native|retire) ;;
+          *) echo "Invalid preview mode" >&2; exit 2;;
+        esac
+        node "$GITHUB_ACTION_PATH/../publish.cjs" "--$PREVIEW_MODE"

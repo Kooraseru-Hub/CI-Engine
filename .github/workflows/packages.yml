@@ -50,3 +50,22 @@ jobs:
           directory: build/branches
           repository: ${{ github.repository }}
           default-branch: ${{ github.event.repository.default_branch }}
+  documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - run: node --test packages/documentation/*.test.cjs
+      - run: |
+          mkdir -p build/site
+          printf '%s\n' '<html>Example</html>' > build/site/index.html
+          printf '%s\n' '[github.previews]' 'enabled = true' 'cloudflare_project = "fixture"' > build/preview.toml
+      - uses: ./packages/documentation/preview
+        with:
+          config: build/preview.toml
+          directory: build/site
