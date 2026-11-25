@@ -10,7 +10,7 @@ permissions:
   contents: read
 jobs:
   releases:
-    name: Release verifier
+    name: Release packages
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24'
-      - run: node --test packages/releases/verify.test.mjs
+      - run: node --test packages/releases/*.test.mjs
       - name: Exercise the composite action
         run: |
           mkdir -p build/releases
@@ -28,3 +28,7 @@ jobs:
       - uses: ./packages/releases/verify
         with:
           index: build/releases/index.json
+      - uses: ./packages/releases/publish
+        with:
+          index: build/releases/index.json
+          repository: ${{ github.repository }}

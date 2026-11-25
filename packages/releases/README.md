@@ -24,4 +24,14 @@ Checkout or download the staged files before calling the action. Run it after st
 
 Run the package tests with `node --test packages/releases/verify.test.mjs`.
 
-Release staging and publication still use the legacy implementation during migration; this verifier is the first standalone operation.
+## Publish staged releases
+
+The standalone publisher verifies the entire index before any remote call, preserves the existing skip/fail/replace behavior, generates notes from historical tags, and verifies new asset digests before deleting replaced assets. Run it with Node.js 20+ and Git.
+
+```sh
+node /path/to/ci-packages/packages/releases/publish.mjs --index build/artifacts/releases/index.json --repository owner/repo
+```
+
+This is a read-only rehearsal. Add `--publish` and provide an authorized `GH_TOKEN` to publish. In Actions, use the `packages/releases/publish` composite action with `index`, `repository`, and `confirm: 'true'` only in a trusted job with Contents: write and an appropriate environment. The default is a credential-free rehearsal. The package does not select credentials or schedule jobs.
+
+Run `node --test packages/releases/*.test.mjs` for mocked publication and artifact verification tests. The tests make no external mutations.
