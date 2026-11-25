@@ -23,9 +23,9 @@ node /path/to/ci-packages/packages/releases/verify.mjs --index build/artifacts/r
 Example hosted invocation (replace the ref with a reviewed immutable commit SHA):
 
 ```yaml
-- uses: Kooraseru-Hub/CI-Engine/packages/releases/verify@<commit-sha>
+- uses: Kooraseru-Hub/CI-Packages/packages/releases/verify@<commit-sha>
   with:
     index: build/artifacts/releases/index.json
 ```
 
-No package registry or package discovery mechanism is needed. The repository name is temporary. Consumers of the former engine must remain pinned to a historical engine revision until they migrate.
+No package registry or package discovery mechanism is needed. Consumers of the former engine must remain pinned to a historical engine revision until they migrate.
