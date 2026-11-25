@@ -57,3 +57,42 @@ test("upload rehearsal never calls network; reuse needs digest and public verifi
   }});
   assert.deepEqual(result,{digest,url:ref,rehearsal:false});
 });
+
+test("waits for public cooked URLs without re-editing or requesting unapproved storage",async()=>{
+  const t=transport();
+  let put=false, reads=0, waits=0;
+  const request=async(url,options)=>{
+    if(options.method==="PUT") put=true;
+    const res=await t.request(url,options);
+    if(put && url.endsWith("/posts/7.json") && options.method==="GET" && !options.headers["User-Api-Key"] && ++reads===1){
+      const post=await res.json();
+      post.cooked='<img alt="Image" src="https://devforum.roblox.com/secure-uploads/example.png">';
+      return Response.json(post);
+    }
+    return res;
+  };
+  const p=createPublisher(config,"secret","client",request,async ms=>{assert.equal(ms,10000);waits++});
+  assert.deepEqual(await p.publish("Updated\n"+raw,digest(raw)),{changed:true,verified:1});
+  assert.equal(waits,1);
+  assert.equal(t.calls.filter(c=>c.options.method==="PUT").length,1);
+  assert.ok(!t.calls.some(c=>c.url.includes("/secure-uploads/")));
+});
+
+test("persistent unapproved storage fails closed after bounded polling",async()=>{
+  const t=transport();
+  let waits=0;
+  const request=async(url,options)=>{
+    const res=await t.request(url,options);
+    if(url.endsWith("/posts/7.json") && options.method==="GET" && !options.headers["User-Api-Key"]){
+      const post=await res.json();
+      post.cooked='<img alt="Image" src="https://example.com/not-public.png">';
+      return Response.json(post);
+    }
+    return res;
+  };
+  const p=createPublisher(config,"secret","client",request,async()=>{waits++});
+  await assert.rejects(p.publish("Updated\n"+raw,digest(raw)),/failed anonymous verification: Unexpected cooked image storage URL/);
+  assert.equal(waits,9);
+  assert.equal(t.calls.filter(c=>c.options.method==="PUT").length,1);
+  assert.ok(!t.calls.some(c=>c.url.startsWith("https://example.com")));
+});

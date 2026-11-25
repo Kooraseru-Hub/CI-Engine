@@ -117,7 +117,7 @@ function destination(config) {
   return { topicId, postId };
 }
 
-function createPublisher(config, key, client, request = fetch) {
+function createPublisher(config, key, client, request = fetch, wait = sleep) {
   const { topicId, postId } = destination(config);
   requireThat(key && client && !/[\r\n]/.test(key + client), "Missing DevForum credentials");
   const auth = { "User-Api-Key": key, "User-Api-Client-Id": client };
@@ -178,15 +178,26 @@ function createPublisher(config, key, client, request = fetch) {
       }
       const checked = new Map();
       const expected = rawImages(raw).size;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        if (attempt) await sleep(5000);
+      // Cooking and storage promotion are asynchronous. An intermediate cooked
+      // URL can be rejected by the strict allowlist before its public URL exists.
+      // Never fetch a rejected URL, and never issue a second PUT during polling.
+      let lastFailure = "Saved post or its native PNGs are not yet public";
+      for (let attempt = 0; attempt < 10; attempt++) {
+        if (attempt) await wait(10000);
         const post = await publicPost();
         if (!sameRaw(post.raw, raw)) continue;
-        const uploads = await availableUploads(post, request, checked);
-        const count = Object.values(uploads).filter(Boolean).length;
-        if (count === expected) return { changed, verified: count };
+        try {
+          const uploads = await availableUploads(post, request, checked);
+          const count = Object.values(uploads).filter(Boolean).length;
+          if (count === expected) return { changed, verified: count };
+          lastFailure = "Only " + count + " of " + expected + " native PNGs verified";
+        } catch (error) {
+          // A rejected promise must not poison the next observation of the post.
+          checked.clear();
+          lastFailure = error instanceof Error ? error.message : "Image verification failed";
+        }
       }
-      throw new Error("Saved DevForum post or its native PNGs failed anonymous verification");
+      throw new Error("Saved DevForum post or its native PNGs failed anonymous verification: " + lastFailure);
     },
   };
 }
