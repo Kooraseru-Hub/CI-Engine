@@ -160,11 +160,11 @@ function destination(config) {
 
 function createPublisher(config, key, client, request = fetch, wait = sleep) {
   const { topicId, postId } = destination(config);
-  requireThat(key && client && !/[\r\n]/.test(key + client), "Missing DevForum credentials");
   const auth = { "User-Api-Key": key, "User-Api-Client-Id": client };
   const postPath = "/posts/" + postId + ".json";
 
   async function api(path, { authenticated = false, method = "GET", payload } = {}) {
+    if (authenticated) requireThat(key && client && !/[\r\n]/.test(key + client), "Missing DevForum credentials");
     const headers = { Accept: "application/json", ...(authenticated ? auth : {}) };
     if (payload) headers["Content-Type"] = "application/json";
     const response = await request(ORIGIN + path, {
@@ -199,6 +199,12 @@ function createPublisher(config, key, client, request = fetch, wait = sleep) {
   }
 
   return {
+    async inspect() {
+      await publicTopic();
+      const post = await publicPost();
+      return { digest: digest(post.raw), validUploads: await availableUploads(post, request) };
+    },
+
     async prepare() {
       await publicTopic();
       const [authPost, anonymous] = await Promise.all([authenticatedPost(), publicPost()]);
@@ -257,7 +263,9 @@ async function main() {
   destination(config);
   if (mode === 'rehearse') { if (!file) throw new Error('Expected Markdown path'); const raw = fs.readFileSync(file, 'utf8'); console.log(JSON.stringify({ digest: digest(raw), images: rawImages(raw).size })); return; }
   const publisher = createPublisher(config, process.env.DEVFORUM_UPLOAD_KEY, process.env.DEVFORUM_UPLOAD_CLIENT);
-  if (mode === "prepare") {
+  if (mode === "inspect") {
+    console.log(JSON.stringify(await publisher.inspect()));
+  } else if (mode === "prepare") {
     console.log(JSON.stringify(await publisher.prepare()));
   } else if (mode === "recover" && /^[a-f0-9]{64}$/.test(file)) {
     console.log(JSON.stringify(await publisher.recover(file)));

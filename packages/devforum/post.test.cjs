@@ -121,3 +121,12 @@ test("recovers exact Git blob identities from public original bytes, not thumbna
   await assert.rejects(p.recover("0".repeat(64)),/changed before cache recovery/);
   assert.ok(!t.calls.some(c=>c.options.method==="PUT"||c.url.includes("/optimized/")));
 });
+
+test("anonymous topic inspection requires no credentials and cannot perform a write",async()=>{
+  const t=transport();
+  const p=createPublisher(config,undefined,undefined,t.request);
+  assert.deepEqual(await p.inspect(),{digest:digest(raw),validUploads:{[ref]:true}});
+  await assert.rejects(p.publish(raw,digest(raw)),/Missing DevForum credentials/);
+  assert.ok(t.calls.every(c=>c.options.method===undefined||c.options.method==="GET"));
+  assert.ok(t.calls.every(c=>c.options.headers["User-Api-Key"]===undefined));
+});
