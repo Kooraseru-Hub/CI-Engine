@@ -96,3 +96,28 @@ test("persistent unapproved storage fails closed after bounded polling",async()=
   assert.equal(t.calls.filter(c=>c.options.method==="PUT").length,1);
   assert.ok(!t.calls.some(c=>c.url.startsWith("https://example.com")));
 });
+
+test("recovers exact Git blob identities from public original bytes, not thumbnails",async()=>{
+  const crypto=require("node:crypto");
+  const t=transport();
+  const original="https://devforum-uploads.s3.dualstack.us-east-2.amazonaws.com/uploads/original/5X/fixture.png";
+  const request=async(url,options)=>{
+    if(url===original){
+      assert.equal(options.credentials,"omit");
+      assert.equal(options.headers,undefined);
+      return new Response(png,{status:200});
+    }
+    const response=await t.request(url,options);
+    if(url.endsWith("/posts/7.json")){
+      const post=await response.json();
+      post.cooked='<img alt="Image" src="https://devforum.roblox.com/uploads/optimized/fixture.png" data-orig-src="'+original+'">';
+      return Response.json(post);
+    }
+    return response;
+  };
+  const p=createPublisher(config,"secret","client",request);
+  const expected=crypto.createHash("sha1").update("blob "+png.length+"\0").update(png).digest("hex");
+  assert.deepEqual(await p.recover(digest(raw)),{[ref]:expected});
+  await assert.rejects(p.recover("0".repeat(64)),/changed before cache recovery/);
+  assert.ok(!t.calls.some(c=>c.options.method==="PUT"||c.url.includes("/optimized/")));
+});
