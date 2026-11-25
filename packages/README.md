@@ -12,7 +12,7 @@ Package conventions:
 - Use the caller's working directory for project inputs and the executable's own location for package resources.
 - Declare runtime requirements and credentials in the package's README. Never infer publishing authority from the existence of a token; mutation must be requested by a trusted workflow with narrowly scoped permissions.
 - Return nonzero on failure. Use native action outputs when the caller needs machine-readable results.
-- No dependency on the legacy scheduler, component discovery, or workflow generator.
+- No scheduler, component discovery, or workflow generator.
 
 Example local invocation from a consumer checkout, with the package repository installed at any location:
 
@@ -28,4 +28,4 @@ Example hosted invocation (replace the ref with a reviewed immutable commit SHA)
     index: build/artifacts/releases/index.json
 ```
 
-No package registry or package discovery mechanism is needed. The repository name is temporary; the existing engine remains at its current paths until consumers migrate.
+No package registry or package discovery mechanism is needed. The repository name is temporary. Consumers of the former engine must remain pinned to a historical engine revision until they migrate.
