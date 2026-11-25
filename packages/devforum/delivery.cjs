@@ -2,7 +2,7 @@
 "use strict";
 const fs = require("node:fs");
 const { setTimeout: sleep } = require("node:timers/promises");
-const { prepare, publishedRelease, inspectTopic, deliver, draft, identity } = require("./announcement.cjs");
+const { prepare, publishedRelease, inspectTopic, deliver, draft, identity, announcementBody } = require("./announcement.cjs");
 const ORIGIN = "https://devforum.roblox.com";
 const GITHUB = "https://api.github.com";
 const hex = /^[a-f0-9]{40}$/;
@@ -85,8 +85,8 @@ function forumTransport(config, repository, {key,client,token,request=fetch,wait
       check(plan.repository===repository && plan.topicId===config.destination.topicId &&
         plan.firstPostId===config.destination.postId,"Approved destination mismatch");
       const current=await publishedRelease(repository,plan.tag,{token,request});
-      const expected=draft({repository,...current,topicId:plan.topicId,firstPostId:plan.firstPostId,authorId:plan.authorId});
-      check(expected.raw===plan.raw && expected.releaseId===plan.releaseId && expected.commit===plan.commit,"Published release changed after approval");
+      const expected=draft({repository,...current,topicId:plan.topicId,firstPostId:plan.firstPostId,authorId:plan.authorId,body:announcementBody(config,plan.tag)});
+      check(expected.raw===plan.raw && expected.releaseId===plan.releaseId && expected.commit===plan.commit && expected.releaseNotesDigest===plan.releaseNotesDigest,"Published release changed after approval");
       await store.verifyBranch();
       // Verify the authenticated actor, not merely permission to edit someone else's post.
       const session=await api("GET","/session/current.json");

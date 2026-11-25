@@ -85,3 +85,19 @@ test("read-only preparation reads published tag and existing topic without write
   return request(url,options);
  }),/manually authored/);
 });
+
+test("editable project announcement overrides notes without changing release identity",()=>{
+ const original=draft(base);
+ const custom=draft({...base,body:"Late announcement!\n\nNew lookup API."});
+ assert.equal(custom.key,original.key);
+ assert.notEqual(custom.approval,original.approval);
+ assert.match(custom.raw,/^Late announcement!/);
+ assert.equal(custom.releaseNotesDigest,original.releaseNotesDigest);
+ const changed=draft({...base,body:"Late announcement!\n\nNew lookup API.",release:{...base.release,body:"Changed release notes"}});
+ assert.notEqual(custom.approval,changed.approval);
+ assert.throws(()=>draft({...base,body:"<!-- ci-release:invalid -->"}),/Invalid announcement Markdown/);
+ const {announcementBody}=require("./announcement.cjs");
+ assert.match(announcementBody({announcementFiles:{"2.1.0":"packages/devforum/README.md"}},"2.1.0"),/DevForum/);
+ assert.equal(announcementBody({announcementFiles:{}},"2.1.0"),undefined);
+ assert.throws(()=>announcementBody({announcementFiles:{"2.1.0":"../outside.md"}},"2.1.0"),/Invalid announcement file path/);
+});
