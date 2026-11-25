@@ -41,7 +41,8 @@ export async function publishBranches(directory, { remote, defaultBranch, confir
   for (const { name } of entries) {
     if (name === defaultBranch) { result.skipped.push(name); continue; }
     if (!confirm) continue;
-    const work = await mkdtemp(path.join(os.tmpdir(), "generated-branch-"));
+    const temp = await mkdtemp(path.join(os.tmpdir(), "generated-branch-"));
+    const work = path.join(temp, "work");
     try {
       await cp(path.join(directory, name), work, { recursive: true, errorOnExist: true, force: false });
       git(work, env, "init", "--quiet");
@@ -66,7 +67,7 @@ export async function publishBranches(directory, { remote, defaultBranch, confir
       git(work, env, "push", "origin", commit + ":" + ref);
       result[parent ? "updated" : "created"].push(name);
     } finally {
-      await rm(work, { recursive: true, force: true });
+      await rm(temp, { recursive: true, force: true });
     }
   }
   return { ...result, candidates: entries.map(entry => entry.name) };
