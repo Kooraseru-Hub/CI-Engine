@@ -30,7 +30,7 @@ function validReply(reply, plan) {
 }
 
 // A stable identity follows a version, not the contents of the release notes.
-function draft({ repository, release, commit, topicId, firstPostId, authorId, existing = null }) {
+function draft({ repository, release, commit, topicId, firstPostId, authorId, existing = null, body = release.body }) {
   check(integer(topicId) && integer(firstPostId) && integer(authorId), "Invalid forum destination");
   check(release && integer(release.id) && release.draft === false && release.prerelease === false &&
     typeof release.published_at === "string" && Number.isFinite(Date.parse(release.published_at)), "Only a published non-prerelease release may be announced");
@@ -40,9 +40,10 @@ function draft({ repository, release, commit, topicId, firstPostId, authorId, ex
   const tag = release.tag_name;
   const key = identity(repository, topicId, tag);
   const url = releaseURL(repository, tag);
-  const raw = release.body.trimEnd() + "\n\n[GitHub release](" + url + ")\n\n" + marker(key) + "\n";
+  check(typeof body === "string" && body.trim() && body.length <= 30000 && !body.includes("<!-- ci-release:"), "Invalid announcement Markdown");
+  const raw = body.trimEnd() + "\n\n[GitHub release](" + url + ")\n\n" + marker(key) + "\n";
   const plan = { version:1, kind:"release", repository, topicId, firstPostId, authorId, tag,
-    releaseId:release.id, commit, key, raw, expectedPost:null };
+    releaseId:release.id, commit, releaseNotesDigest:digest(release.body), key, raw, expectedPost:null };
   if (existing) {
     check(validReply(existing, plan), "Existing reply identity mismatch");
     plan.expectedPost = { id:existing.id, digest:digest(existing.raw) };
@@ -146,13 +147,25 @@ async function publishedRelease(repository, tag, { token, request = fetch } = {}
   check(ref?.type === "commit" && /^[a-f0-9]{40}$/.test(ref.sha), "Release tag does not identify a commit");
   return {release,commit:ref.sha};
 }
+// An explicit, project-owned Markdown override is editable without changing release metadata.
+function announcementBody(config, tag) {
+  const files = config.announcementFiles;
+  if (!files || !Object.hasOwn(files, tag)) return undefined;
+  const file = files[tag];
+  check(typeof file === "string" && file.endsWith(".md") &&
+    file.split("/").every(part => /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(part)), "Invalid announcement file path");
+  const root = fs.realpathSync(process.cwd());
+  const resolved = fs.realpathSync(path.resolve(root, file));
+  check(resolved.startsWith(root + path.sep) && fs.statSync(resolved).isFile(), "Announcement file must be inside the project");
+  return fs.readFileSync(resolved, "utf8");
+}
 async function prepare(repository, tag, config, options = {}) {
   const {release,commit} = await publishedRelease(repository, tag, options);
   const {authorId,existing} = await inspectTopic(config.destination, repository, tag, options.request);
   return draft({repository,release,commit,topicId:config.destination.topicId,
-    firstPostId:config.destination.postId,authorId,existing});
+    firstPostId:config.destination.postId,authorId,existing,body:announcementBody(config,tag)});
 }
-module.exports = { identity, draft, deliver, inspectTopic, publishedRelease, prepare, planHash };
+module.exports = { identity, draft, deliver, inspectTopic, publishedRelease, prepare, planHash, announcementBody };
 if (require.main === module) {
   // There is deliberately no live CLI until a consumer supplies the durable
   // atomic receipt store. A draft cannot accidentally become a post.
