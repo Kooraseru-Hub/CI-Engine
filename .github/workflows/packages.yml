@@ -1,0 +1,30 @@
+name: Standalone packages
+on:
+  push:
+    branches: [main]
+    paths: ['packages/**', '.github/workflows/packages.yml']
+  pull_request:
+    paths: ['packages/**', '.github/workflows/packages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  releases:
+    name: Release verifier
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - run: node --test packages/releases/verify.test.mjs
+      - name: Exercise the composite action
+        run: |
+          mkdir -p build/releases
+          printf '%s\n' '{"onExisting":"skip","releases":[]}' > build/releases/index.json
+      - uses: ./packages/releases/verify
+        with:
+          index: build/releases/index.json
