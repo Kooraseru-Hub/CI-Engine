@@ -26,7 +26,7 @@ async function inspect(directory) {
 }
 
 // Validate every candidate before modifying any remote. Never force-push.
-export async function publishBranches(directory, { remote, defaultBranch, confirm = false, env = process.env } = {}) {
+export async function publishBranches(directory, { remote, defaultBranch, confirm = false, env = process.env, expectedHeads = {} } = {}) {
   if (!defaultBranch) throw new Error("A default branch is required");
   git(process.cwd(), env, "check-ref-format", "refs/heads/" + defaultBranch);
   const root = await lstat(directory);
@@ -35,6 +35,11 @@ export async function publishBranches(directory, { remote, defaultBranch, confir
   for (const entry of entries) {
     if (!entry.isDirectory() || !branchPattern.test(entry.name)) throw new Error("Invalid generated branch: " + entry.name);
     await inspect(path.join(directory, entry.name));
+  }
+  for (const [name, sha] of Object.entries(expectedHeads)) {
+    if (!branchPattern.test(name) || typeof sha !== "string" || !/^[a-f0-9]{40}$/.test(sha) ||
+        !entries.some(entry => entry.name === name) || name === defaultBranch)
+      throw new Error("Invalid expected generated branch head");
   }
   const result = { created: [], updated: [], unchanged: [], skipped: [], rehearsal: !confirm };
   if (confirm && !remote) throw new Error("A remote is required for publication");
@@ -57,6 +62,8 @@ export async function publishBranches(directory, { remote, defaultBranch, confir
         parent = git(work, env, "rev-parse", "FETCH_HEAD");
         if (parent !== match[1]) throw new Error("Branch moved while preparing publication: " + name);
       }
+      if (Object.hasOwn(expectedHeads, name) && parent !== expectedHeads[name])
+        throw new Error("Generated branch changed after preparation: " + name);
       git(work, env, "add", "--force", "--all");
       const tree = git(work, env, "write-tree");
       if (parent && tree === git(work, env, "rev-parse", parent + "^{tree}")) {
@@ -90,7 +97,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
       env.GIT_CONFIG_KEY_0 = "http.https://github.com/.extraheader";
       env.GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic " + Buffer.from("x-access-token:" + token).toString("base64");
     }
-    const result = await publishBranches(directory, { remote: "https://github.com/" + repository + ".git", defaultBranch, confirm, env });
+    const result = await publishBranches(directory, { remote: "https://github.com/" + repository + ".git", defaultBranch, confirm, env, expectedHeads: JSON.parse(process.env.EXPECTED_BRANCH_HEADS || "{}") });
     console.log(JSON.stringify(result));
   } catch (error) {
     console.error("Generated branch publication failed: " + error.message);

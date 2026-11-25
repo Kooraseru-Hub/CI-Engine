@@ -10,6 +10,9 @@ inputs:
   default-branch:
     description: Protected authored default branch, never overwritten
     required: true
+  expected-heads:
+    description: Optional JSON map of generated branch names to their required current commits
+    default: '{}'
   confirm:
     description: Set true only from an authorized publication job
     default: 'false'
@@ -21,6 +24,7 @@ runs:
         BRANCH_DIRECTORY: ${{ inputs.directory }}
         BRANCH_REPOSITORY: ${{ inputs.repository }}
         DEFAULT_BRANCH: ${{ inputs.default-branch }}
+        EXPECTED_BRANCH_HEADS: ${{ inputs.expected-heads }}
         CONFIRM: ${{ inputs.confirm }}
       run: |
         args=(--directory "$BRANCH_DIRECTORY" --repository "$BRANCH_REPOSITORY" --default-branch "$DEFAULT_BRANCH")

@@ -1,0 +1,25 @@
+name: Draft DevForum release announcement
+description: Prepare an immutable announcement for a published GitHub release without forum writes
+inputs:
+  repository:
+    description: GitHub owner/repository
+    required: true
+  tag:
+    description: Exact published release tag
+    required: true
+  config:
+    description: Project DevForum destination JSON
+    required: true
+  output:
+    description: Draft output directory
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        REPOSITORY: ${{ inputs.repository }}
+        TAG: ${{ inputs.tag }}
+        CONFIG: ${{ inputs.config }}
+        OUTPUT: ${{ inputs.output }}
+      run: node "$GITHUB_ACTION_PATH/../announcement.cjs" draft "$REPOSITORY" "$TAG" "$CONFIG" "$OUTPUT"

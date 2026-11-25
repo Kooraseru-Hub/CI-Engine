@@ -65,7 +65,9 @@ test("publishes a verified draft then finalizes it; historical notes use recorde
   f.record.releases[0].previousTag = "0.9.0";
   await f.save();
   const m = mock();
-  assert.equal((await f.run({ confirm: true, io: m.io })).published, 1);
+  const result = await f.run({ confirm: true, io: m.io });
+  assert.equal(result.published, 1);
+  assert.deepEqual(result.publishedTags, ["1.0.0"]);
   const create = m.calls.find(c => c.method === "POST" && c.route.endsWith("/releases"));
   assert.equal(create.body.target_commitish, commit);
   assert.equal(create.body.body, "Authored notes\n\nGenerated notes");

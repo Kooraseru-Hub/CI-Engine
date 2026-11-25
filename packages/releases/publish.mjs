@@ -106,11 +106,11 @@ export async function publish(indexName, repository, { cwd = process.cwd(), io, 
   }
   if (!confirm) return { ...result, published: 0, rehearsal: true };
   if (!io) throw new Error("Publication requires authorized GitHub transport");
-  let published = 0;
+  const publishedTags = [];
   for (const entry of index.releases) {
-    if (await publishEntry(repository, entry, entry.onExisting ?? index.onExisting, io, cwd, path.dirname(indexPath))) published++;
+    if (await publishEntry(repository, entry, entry.onExisting ?? index.onExisting, io, cwd, path.dirname(indexPath))) publishedTags.push(entry.tag);
   }
-  return { ...result, published, rehearsal: false };
+  return { ...result, published: publishedTags.length, publishedTags, rehearsal: false };
 }
 
 function github(token) {
