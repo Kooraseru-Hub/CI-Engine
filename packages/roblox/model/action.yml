@@ -1,0 +1,25 @@
+name: Build Roblox model
+description: Generate an uncompressed binary ModuleScript model from a Git revision
+inputs:
+  commit:
+    description: Full source commit SHA in the checkout
+    required: true
+  source:
+    description: Repository-relative Luau file or module tree
+    required: true
+  output:
+    description: Output RBXM file
+    required: true
+  name:
+    description: Root model instance name
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        COMMIT: ${{ inputs.commit }}
+        SOURCE: ${{ inputs.source }}
+        OUTPUT: ${{ inputs.output }}
+        MODEL_NAME: ${{ inputs.name }}
+      run: node "$GITHUB_ACTION_PATH/../model.cjs" "$COMMIT" "$SOURCE" "$OUTPUT" "$MODEL_NAME"

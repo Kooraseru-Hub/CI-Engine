@@ -1,0 +1,28 @@
+name: Publish verified release artifacts
+description: Rehearse or publish staged release records with explicit authorization
+inputs:
+  index:
+    description: Workspace-relative staged release index
+    required: true
+  repository:
+    description: Destination owner/repository
+    required: true
+  confirm:
+    description: Set true only from a trusted, authorized publication job
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RELEASE_INDEX: ${{ inputs.index }}
+        RELEASE_REPOSITORY: ${{ inputs.repository }}
+        RELEASE_CONFIRM: ${{ inputs.confirm }}
+      run: |
+        args=(--index "$RELEASE_INDEX" --repository "$RELEASE_REPOSITORY")
+        case "$RELEASE_CONFIRM" in
+          true) args+=(--publish);;
+          false) ;;
+          *) echo "Invalid confirm value" >&2; exit 2;;
+        esac
+        node "$GITHUB_ACTION_PATH/../publish.mjs" "${args[@]}"

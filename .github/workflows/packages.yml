@@ -1,0 +1,123 @@
+name: Standalone packages
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  releases:
+    name: Release packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - run: node --test packages/releases/*.test.mjs
+      - name: Exercise the composite action
+        run: |
+          mkdir -p build/releases
+          printf '%s\n' '{"onExisting":"skip","releases":[]}' > build/releases/index.json
+      - uses: ./packages/releases/verify
+        with:
+          index: build/releases/index.json
+      - uses: ./packages/releases/publish
+        with:
+          index: build/releases/index.json
+          repository: ${{ github.repository }}
+  repository:
+    name: Repository packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - run: node --test packages/repository/*.test.mjs
+      - run: |
+          mkdir -p build/branches/main
+          printf '%s\n' 'Example generated content' > build/branches/main/README.md
+      - uses: ./packages/repository/branches
+        with:
+          directory: build/branches
+          repository: ${{ github.repository }}
+          default-branch: ${{ github.event.repository.default_branch }}
+  documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - run: node --test packages/documentation/*.test.cjs
+      - run: |
+          mkdir -p build/site
+          printf '%s\n' '<html>Example</html>' > build/site/index.html
+          printf '%s\n' '[github.previews]' 'enabled = true' 'cloudflare_project = "fixture"' > build/preview.toml
+      - uses: ./packages/documentation/preview
+        with:
+          config: build/preview.toml
+          directory: build/site
+  devforum:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - run: node --test packages/devforum/*.test.cjs
+      - run: |
+          mkdir -p build/forum
+          printf '%s\n' '{"destination":{"topicId":42,"postId":7}}' > build/forum/config.json
+          printf '%s\n' '![Image](upload://abc.png)' > build/forum/post.md
+          printf '%s' 'iVBORw0KGgo=' | base64 -d > build/forum/image.png
+      - uses: ./packages/devforum/post
+        with:
+          config: build/forum/config.json
+          file: build/forum/post.md
+      - uses: ./packages/devforum/upload
+        with:
+          file: build/forum/image.png
+  roblox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - run: node --test packages/roblox/*.test.cjs
+      - run: |
+          mkdir -p build/model
+          git init --quiet build/model
+          printf '%s\n' 'return 42' > build/model/Example.luau
+          git -C build/model add .
+          git -C build/model -c user.name=Fixture -c user.email=fixture@example.invalid commit -m fixture
+          git -C build/model archive --format=zip --output=Example.zip HEAD
+      - name: Exercise composite action with tracked module fixture
+        run: |
+          # This package fixture is committed with the package, so the action can read it directly.
+          test -f packages/roblox/fixtures/Example.luau
+      - uses: ./packages/roblox/model
+        with:
+          commit: ${{ github.sha }}
+          source: packages/roblox/fixtures/Example.luau
+          output: build/Example.rbxm
+          name: Example
+      - run: test -s build/Example.rbxm

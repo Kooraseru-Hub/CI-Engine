@@ -1,0 +1,32 @@
+name: Publish generated branches
+description: Verify or publish staged generated branch directories without force pushes
+inputs:
+  directory:
+    description: Path to staged generated branches
+    required: true
+  repository:
+    description: Destination owner/repository
+    required: true
+  default-branch:
+    description: Protected authored default branch, never overwritten
+    required: true
+  confirm:
+    description: Set true only from an authorized publication job
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        BRANCH_DIRECTORY: ${{ inputs.directory }}
+        BRANCH_REPOSITORY: ${{ inputs.repository }}
+        DEFAULT_BRANCH: ${{ inputs.default-branch }}
+        CONFIRM: ${{ inputs.confirm }}
+      run: |
+        args=(--directory "$BRANCH_DIRECTORY" --repository "$BRANCH_REPOSITORY" --default-branch "$DEFAULT_BRANCH")
+        case "$CONFIRM" in
+          true) args+=(--publish);;
+          false) ;;
+          *) echo "Invalid confirm value" >&2; exit 2;;
+        esac
+        node "$GITHUB_ACTION_PATH/../branches.mjs" "${args[@]}"
