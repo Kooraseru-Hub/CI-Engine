@@ -92,3 +92,32 @@ jobs:
       - uses: ./packages/devforum/upload
         with:
           file: build/forum/image.png
+  roblox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - run: node --test packages/roblox/*.test.cjs
+      - run: |
+          mkdir -p build/model
+          git init --quiet build/model
+          printf '%s\n' 'return 42' > build/model/Example.luau
+          git -C build/model add .
+          git -C build/model -c user.name=Fixture -c user.email=fixture@example.invalid commit -m fixture
+          git -C build/model archive --format=zip --output=Example.zip HEAD
+      - name: Exercise composite action with tracked module fixture
+        run: |
+          # This package fixture is committed with the package, so the action can read it directly.
+          test -f packages/roblox/fixtures/Example.luau
+      - uses: ./packages/roblox/model
+        with:
+          commit: ${{ github.sha }}
+          source: packages/roblox/fixtures/Example.luau
+          output: build/Example.rbxm
+          name: Example
+      - run: test -s build/Example.rbxm

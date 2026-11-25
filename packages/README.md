@@ -4,6 +4,9 @@ Each directory is an independently callable capability. Use the package directly
 
 - [releases](releases/README.md): verify and publish staged release artifacts.
 - [repository](repository/README.md): verify and publish generated repository branches.
+- [documentation](documentation/README.md): verify, deploy and retire static previews.
+- [devforum](devforum/README.md): native uploads and verified public post publication.
+- [roblox](roblox/README.md): build Roblox ModuleScript models from Git history.
 
 Package conventions:
 
