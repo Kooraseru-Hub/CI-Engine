@@ -102,6 +102,47 @@ async function availableUploads(post, request = fetch, checked = new Map()) {
   return Object.fromEntries(entries);
 }
 
+// Recover exact Git blob identities from publicly accessible original PNGs.
+// Optimized thumbnails and URLs outside the native allowlist are never used.
+async function originalBlobs(post, request = fetch) {
+  const recovered = {};
+  const limit = 16 * 1024 * 1024;
+  for (const [ref, urls] of cookedImages(post.raw, post.cooked)) {
+    for (const value of urls) {
+      let url;
+      try { url = new URL(publicImageURL(value)); } catch { continue; }
+      if (!url.pathname.startsWith("/uploads/original/")) continue;
+      const response = await request(url.href, {
+        redirect: "error", credentials: "omit", cache: "no-store",
+        signal: AbortSignal.timeout(15000)
+      });
+      if (response.status !== 200 || !response.body ||
+          Number(response.headers.get("content-length")) > limit) {
+        await response.body?.cancel();
+        continue;
+      }
+      const reader = response.body.getReader();
+      const chunks = [];
+      let length = 0;
+      try {
+        for (;;) {
+          const { done, value: chunk } = await reader.read();
+          if (done) break;
+          length += chunk.byteLength;
+          if (length > limit) { await reader.cancel(); break; }
+          chunks.push(Buffer.from(chunk));
+        }
+      } finally { reader.releaseLock(); }
+      if (length > limit) continue;
+      const bytes = Buffer.concat(chunks);
+      if (!bytes.subarray(0, 8).equals(PNG)) continue;
+      recovered[ref] = crypto.createHash("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex");
+      break;
+    }
+  }
+  return recovered;
+}
+
 function digest(raw) {
   return crypto.createHash("sha256").update(raw).digest("hex");
 }
@@ -117,7 +158,7 @@ function destination(config) {
   return { topicId, postId };
 }
 
-function createPublisher(config, key, client, request = fetch) {
+function createPublisher(config, key, client, request = fetch, wait = sleep) {
   const { topicId, postId } = destination(config);
   requireThat(key && client && !/[\r\n]/.test(key + client), "Missing DevForum credentials");
   const auth = { "User-Api-Key": key, "User-Api-Client-Id": client };
@@ -165,6 +206,13 @@ function createPublisher(config, key, client, request = fetch) {
       return { digest: digest(authPost.raw), validUploads: await availableUploads(anonymous, request) };
     },
 
+    async recover(snapshot) {
+      await publicTopic();
+      const post = await publicPost();
+      requireThat(digest(post.raw) === snapshot, "DevForum post changed before cache recovery");
+      return originalBlobs(post, request);
+    },
+
     async publish(raw, snapshot) {
       rawImages(raw);
       const previous = await authenticatedPost();
@@ -178,15 +226,26 @@ function createPublisher(config, key, client, request = fetch) {
       }
       const checked = new Map();
       const expected = rawImages(raw).size;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        if (attempt) await sleep(5000);
+      // Cooking and storage promotion are asynchronous. An intermediate cooked
+      // URL can be rejected by the strict allowlist before its public URL exists.
+      // Never fetch a rejected URL, and never issue a second PUT during polling.
+      let lastFailure = "Saved post or its native PNGs are not yet public";
+      for (let attempt = 0; attempt < 10; attempt++) {
+        if (attempt) await wait(10000);
         const post = await publicPost();
         if (!sameRaw(post.raw, raw)) continue;
-        const uploads = await availableUploads(post, request, checked);
-        const count = Object.values(uploads).filter(Boolean).length;
-        if (count === expected) return { changed, verified: count };
+        try {
+          const uploads = await availableUploads(post, request, checked);
+          const count = Object.values(uploads).filter(Boolean).length;
+          if (count === expected) return { changed, verified: count };
+          lastFailure = "Only " + count + " of " + expected + " native PNGs verified";
+        } catch (error) {
+          // A rejected promise must not poison the next observation of the post.
+          checked.clear();
+          lastFailure = error instanceof Error ? error.message : "Image verification failed";
+        }
       }
-      throw new Error("Saved DevForum post or its native PNGs failed anonymous verification");
+      throw new Error("Saved DevForum post or its native PNGs failed anonymous verification: " + lastFailure);
     },
   };
 }
@@ -200,6 +259,8 @@ async function main() {
   const publisher = createPublisher(config, process.env.DEVFORUM_UPLOAD_KEY, process.env.DEVFORUM_UPLOAD_CLIENT);
   if (mode === "prepare") {
     console.log(JSON.stringify(await publisher.prepare()));
+  } else if (mode === "recover" && /^[a-f0-9]{64}$/.test(file)) {
+    console.log(JSON.stringify(await publisher.recover(file)));
   } else if (mode === "publish" && file && /^[a-f0-9]{64}$/.test(snapshot)) {
     const result = await publisher.publish(fs.readFileSync(file, "utf8"), snapshot);
     console.log("DevForum post: " + (result.changed ? "updated" : "unchanged") +
