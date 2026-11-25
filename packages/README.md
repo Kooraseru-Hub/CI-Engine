@@ -3,6 +3,7 @@
 Each directory is an independently callable capability. Use the package directly from a GitHub Actions workflow or the command line. GitHub Actions owns scheduling, job dependencies, permissions, environments, and artifact transfer.
 
 - [releases](releases/README.md): verify and publish staged release artifacts.
+- [repository](repository/README.md): verify and publish generated repository branches.
 
 Package conventions:
 

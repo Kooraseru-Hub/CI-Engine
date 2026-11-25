@@ -32,3 +32,23 @@ jobs:
         with:
           index: build/releases/index.json
           repository: ${{ github.repository }}
+  repository:
+    name: Repository packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - run: node --test packages/repository/*.test.mjs
+      - run: |
+          mkdir -p build/branches/main
+          printf '%s\n' 'Example generated content' > build/branches/main/README.md
+      - uses: ./packages/repository/branches
+        with:
+          directory: build/branches
+          repository: ${{ github.repository }}
+          default-branch: ${{ github.event.repository.default_branch }}
