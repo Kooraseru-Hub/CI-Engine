@@ -10,10 +10,15 @@ inputs:
   confirm:
     description: Set true only from a trusted, authorized publication job
     default: 'false'
+outputs:
+  published-tags:
+    description: JSON array of release tags successfully published or replaced by this invocation
+    value: ${{ steps.publish.outputs.tags }}
 runs:
   using: composite
   steps:
-    - shell: bash
+    - id: publish
+      shell: bash
       env:
         RELEASE_INDEX: ${{ inputs.index }}
         RELEASE_REPOSITORY: ${{ inputs.repository }}
@@ -25,4 +30,7 @@ runs:
           false) ;;
           *) echo "Invalid confirm value" >&2; exit 2;;
         esac
-        node "$GITHUB_ACTION_PATH/../publish.mjs" "${args[@]}"
+        result=$(node "$GITHUB_ACTION_PATH/../publish.mjs" "${args[@]}")
+        printf '%s\n' "$result"
+        tags=$(node -e 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[1]).publishedTags || []))' "$result")
+        printf 'tags=%s\n' "$tags" >> "$GITHUB_OUTPUT"
