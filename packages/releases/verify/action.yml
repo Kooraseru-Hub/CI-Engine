@@ -1,0 +1,14 @@
+name: Verify release artifacts
+description: Check staged release records and asset digests without publishing
+inputs:
+  index:
+    description: Workspace-relative staged release index path
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Verify staged artifacts
+      shell: bash
+      env:
+        RELEASE_INDEX: ${{ inputs.index }}
+      run: node "$GITHUB_ACTION_PATH/../verify.mjs" --index "$RELEASE_INDEX"

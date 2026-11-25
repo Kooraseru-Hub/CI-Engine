@@ -2,6 +2,10 @@
 
 A reusable CI execution framework with an independent dispatch run. Consumers own event admission, operation declarations, and components. The engine owns scheduling, permission enforcement, artifacts, and terminal status.
 
+## Standalone packages (migration)
+
+New reusable capabilities live in [packages/](packages/README.md). They are invoked directly from native GitHub Actions or locally, without the engine scheduler. The existing engine entry points remain available for consumers during migration.
+
 ## Execution
 
 One immutable request selects one operation from `config/ci/operations.json`. The workflow resolves and prepares it, discovers components, inspects the requested trust boundary, plans, authorizes, executes, tests, optionally publishes, collects, cleans up, and reports status. No hosted execution builds a temporary workflow or branch.
