@@ -4,6 +4,7 @@ description: Independent deprecated-member interaction specimen.
 ---
 import ApiMember from '../../components/ApiMember.astro';
 import ApiSummary from '../../components/ApiSummary.astro';
+import ApiInheritedGroup from '../../components/ApiInheritedGroup.astro';
 import ApiInteractions from '../../components/ApiInteractions.astro';
 
 ## Summary
@@ -11,6 +12,12 @@ import ApiInteractions from '../../components/ApiInteractions.astro';
 ### Properties
 
 <ApiSummary members={[{kind:"property",signature:"Current: boolean",href:"#current"},{kind:"property",signature:"Old: float",href:"#old",deprecated:true}]} />
+
+### Inherited members
+
+<ApiInheritedGroup id="fixture-inherited" name="Parent" href="#parent" count={1}>
+  <ApiSummary members={[{kind:"property",signature:"Inherited: boolean",href:"#parent"}]} />
+</ApiInheritedGroup>
 
 ## Properties Reference
 

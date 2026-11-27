@@ -106,7 +106,7 @@
       const span=document.createElement('span');span.textContent=label;span.title=label;
       link.replaceChildren(...(icon?[icon.cloneNode(true)]:[]),span);
     };
-    for(const summary of document.querySelectorAll('[data-api-summary]:not(details *)')){
+    for(const summary of document.querySelectorAll('[data-api-summary]:not(details *,[data-inherited-group] *)')){
       const previous=summary.previousElementSibling;
       const heading=previous?.matches('h3[id]')?previous:previous?.querySelector('h3[id]');
       if(!(heading instanceof HTMLElement))continue;
