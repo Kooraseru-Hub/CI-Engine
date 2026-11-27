@@ -99,12 +99,12 @@ test("rendered callouts and desktop outline have bounded layout",async t=>{
     const browser=await chromium.launch();t.after(()=>browser.close());
     const page=await browser.newPage({viewport:{width:1920,height:900}});
     await page.goto(server.url+base+"member/",{waitUntil:"load"});
-    const note=page.locator(".docs-alert[data-kind=note]");
+    const note=page.locator("[data-docs-alert][data-kind=note]");
     await note.waitFor({state:"visible"});
     assert.equal(await note.locator(".MuiAlert-icon svg").count(),1);
     assert.equal(await note.locator(".MuiAlert-message").innerText(),"Inline note with a link.");
     assert.deepEqual(await note.evaluate(el=>{const s=getComputedStyle(el);return [s.display,s.borderRadius,s.borderLeftWidth,s.backgroundColor]}),["flex","8px","0px","rgb(30, 37, 64)"]);
-    assert.equal(await page.locator(".docs-alert[data-kind=tip] .MuiAlert-message").innerText(),"Inline success tip.");
+    assert.equal(await page.locator("[data-docs-alert][data-kind=tip] .MuiAlert-message").innerText(),"Inline success tip.");
     const outline=page.locator(".right-sidebar");
     await outline.waitFor({state:"visible"});
     await page.locator("docs-toc a > span").first().evaluate(el=>el.textContent="UnbrokenHeading".repeat(30));

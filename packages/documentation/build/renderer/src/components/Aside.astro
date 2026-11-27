@@ -3,10 +3,10 @@ interface Props { type?: 'note' | 'tip' | 'caution' | 'danger'; title?: string }
 const {type='note',title}=Astro.props;
 const variant={note:'Info',tip:'Success',caution:'Warning',danger:'Error'}[type];
 ---
-<div role="note" aria-label={title || type} data-kind={type} class:list={['docs-alert','MuiPaper-root','MuiPaper-elevation','MuiPaper-rounded','MuiPaper-elevation0','MuiAlert-root','MuiAlert-standard','Typography-smallLabel1-alertContainer','Alert-standard'+variant,'MuiAlert-color'+variant,'MuiAlert-standard'+variant]}>
+<div role="note" aria-label={title || type} data-docs-alert data-kind={type} class:list={['MuiPaper-root','MuiPaper-elevation','MuiPaper-rounded','MuiPaper-elevation0','MuiAlert-root','MuiAlert-standard','Typography-smallLabel1-alertContainer','Alert-standard'+variant,'MuiAlert-color'+variant,'MuiAlert-standard'+variant]}>
   <div class="MuiAlert-icon">
-    <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeInherit" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      {type==='note' ? <><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></> : type==='tip' ? <><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></> : type==='caution' ? <><path d="M12 3 2 20h20L12 3ZM12 9v4M12 16h.01"/></> : <><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16h.01"/></>}
+    <svg class="MuiSvgIcon-root MuiSvgIcon-fontSizeInherit" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d={type==='note'?'M11 7h2V5h-2zm1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16m-1-3h2V9h-2z':type==='tip'?'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16m-2-4-4-4 1.41-1.41L10 13.17l6.59-6.58L18 8z':type==='caution'?'M1 21h22L12 2zm3.47-2L12 6l7.53 13zM11 10h2v4h-2zm0 6h2v2h-2z':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16m-1-13h2v6h-2zm0 8h2v2h-2z'}/>
     </svg>
   </div>
   <div class="MuiAlert-message"><div class="innerContainer">{title && <strong>{title}</strong>}<slot/></div></div>
