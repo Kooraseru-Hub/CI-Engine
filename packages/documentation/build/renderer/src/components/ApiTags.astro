@@ -1,0 +1,5 @@
+---
+interface Props {labels:string[]}
+const {labels}=Astro.props;
+---
+<div class="tags" style="margin-top:0">{labels.map(label=><span class="tagWrapper engine" aria-label={label} data-tooltip={label}><div class="Label-root-tagLabel">{label}</div></span>)}</div>

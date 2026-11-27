@@ -64,6 +64,7 @@ jobs:
       - name: Build an independent consumer specimen
         run: |
           mkdir -p build/fixture/docs build/fixture/images
+          cp packages/documentation/fixtures/member.mdx build/fixture/docs/member.mdx
           printf '%s\n' '---' 'title: Example' 'description: Independent test specimen' '---' '' '## Heading' '' 'A test document.' > build/fixture/docs/index.md
           printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAIAAAUAAYoz4YgAAAAASUVORK5CYII=' | base64 -d > build/fixture/images/favicon.png
       - uses: ./packages/documentation/build

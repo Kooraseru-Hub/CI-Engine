@@ -299,3 +299,44 @@ a.api-type { cursor:pointer; }
 .sl-markdown-content .expressive-code .row:first-of-type>span {padding-top:8px;}
 .sl-markdown-content .expressive-code .row:last-of-type>span {padding-bottom:8px;}
 .sl-markdown-content .expressive-code .row > span:last-child > span {color:var(--0,var(--docs-text));}
+
+/* API member structure from independent captures, shared across every API document. */
+.sl-markdown-content [data-api-member] {margin:0;min-width:0;}
+.sl-markdown-content [data-api-member] > .titleSection {display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 24px;}
+[data-api-member] .titleRow {display:flex;align-items:center;gap:8px;min-width:0;margin:0;}
+[data-api-member] .iconWrapper {line-height:0;flex-shrink:0;}
+[data-api-member] .iconWrapper svg {width:24px;height:24px;}
+[data-member-heading] {font:700 24px/1.2 'Builder Sans',Helvetica,Arial,sans-serif;min-width:0;overflow-wrap:anywhere;color:var(--docs-heading);}
+[data-member-heading].Typography-h3-Typography-root-titleDeprecated {color:var(--docs-muted);}
+[data-api-member] .toggleIcon {display:inline-flex;align-items:center;gap:2px;margin:0 0 0 auto;flex-shrink:0;white-space:nowrap;background:none;border:0;padding:0;font:600 14px/1.4 'Builder Sans',Helvetica,Arial,sans-serif;color:var(--docs-text);cursor:pointer;}
+[data-api-member] .toggleIcon svg {width:20px;height:20px;fill:currentColor;transform:translateY(1px);}
+[data-api-member] .toggleIcon:hover {color:var(--docs-heading);}
+[data-api-member] .MuiCollapse-root[hidden] {display:none!important;}
+[data-api-member] .MuiCollapse-wrapperInner > .section {margin:0 0 24px;}
+.sl-markdown-content [data-api-member] .section > p:first-child {margin-top:0;}
+.sl-markdown-content [data-api-member] .section > :last-child {margin-bottom:0;}
+.sl-markdown-content [data-api-member] > .dividerSpacing {margin:36px 0;}
+.sl-markdown-content .Divider-root-divider {border:0;border-top:1px solid var(--docs-border);margin:0;}
+.sl-markdown-content .tags {display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px 8px;font:400 14px/1.4 'Builder Sans',Helvetica,Arial,sans-serif;max-width:100%;}
+.tagWrapper {display:inline-block;white-space:nowrap;}
+.tagWrapper.engine {margin:2px 0 4px;}
+.Label-root-tagLabel {display:inline-flex;align-items:center;border-radius:4px;line-height:20px;padding:0 6px;background:rgba(208,217,251,.12);color:var(--docs-heading);text-transform:capitalize;}
+.Typography-subtitle2-Typography-root-title,.Typography-subtitle2-Typography-root-codeSamplesTitle {display:block;font-size:16px;font-weight:700;margin:0 0 16px;}
+.sl-markdown-content [data-api-summary] {margin:0 0 24px;max-width:100%;overflow-x:auto;border:1px solid var(--docs-border);border-radius:4px;}
+.sl-markdown-content [data-api-summary] .MuiTable-root {display:table;width:100%;margin:0;border:0;border-collapse:collapse;}
+.sl-markdown-content [data-api-summary] .MuiTableCell-root {padding:8px 12px 8px 8px;border:0;border-bottom:1px solid var(--docs-border);}
+.sl-markdown-content [data-api-summary] tr:last-child td {border-bottom:0;}
+[data-api-summary] .cellContent {display:flex;align-items:flex-start;gap:8px;min-height:25px;}
+[data-api-summary] .iconWrapper {display:flex;align-items:center;flex-shrink:0;}
+[data-api-summary] :is(.Typography-body2-Typography-root-memberText,.Typography-body2-Typography-root-deprecatedMemberText) {font:400 14px/1.4 'Builder Mono',monospace;min-width:0;word-break:break-word;}
+[data-api-summary] .Typography-body2-Typography-root-deprecatedMemberText {color:var(--docs-muted);}
+.sl-markdown-content [data-api-summary] .Link-colorPrimary-Link-root-titleLink {font:500 14px/1.4 'Builder Mono',monospace;color:inherit;margin-right:4px;text-decoration:none;}
+.sl-markdown-content [data-api-summary] .Link-colorPrimary-Link-root-titleLink:hover {text-decoration:underline;text-underline-offset:4px;}
+[data-api-summary] .parameterComma {margin-inline-end:4px;}
+.sl-markdown-content [data-api-summary] .parameterType-dashedTypeWrapper .dashedType {font-family:inherit;}
+[data-api-summary] .tags {margin:0;}
+[data-api-summary] .tagWrapper.engine {margin:0;}
+/* The reference intro places tags before its separator, not after it. */
+.api-reference-page .sl-markdown-content > p:first-of-type {padding-bottom:0;border-bottom:0;margin-bottom:12px;}
+.api-reference-page .sl-markdown-content > .api-class-status {padding-bottom:36px;border-bottom:3px solid var(--docs-border);margin-bottom:36px;}
+.sl-markdown-content .api-summary-heading-wrapper + [data-api-summary] {margin-top:0;}

@@ -3,6 +3,9 @@ import ApiIcon from './ApiIcon.astro';
 import ApiSignature from './ApiSignature.astro';
 import type { TypeReferences } from './ApiSignature.astro';
 import type { Props as IconProps } from './ApiIcon.astro';
+import ApiTags from './ApiTags.astro';
+import MemberToggleIcon from './MemberToggleIcon.astro';
+import {nameParts} from '../data/format-signature.mjs';
 import ApiPanelSignature from './ApiPanelSignature.astro';
 interface Entry { name: string; type: string; description: string }
 interface Props {
@@ -27,26 +30,30 @@ const {
 const threadLabels: Record<string, string> = { ReadSafe: 'Read Parallel', Safe: 'Write Parallel', LocalSafe: 'Local Safe' };
 const badges = metadata.flatMap(({ label, value }) => {
   if (label === 'Thread safety' && threadLabels[value]) return [threadLabels[value]];
+  if (label === 'Capabilities' && value && value !== 'None') return ['Capabilities: '+value];
   if (label === 'Simulation access' && value === 'Yes') return ['Simulation Access'];
   return [];
 });
+const headingName=name.replace(/\(\)$/,"");
 const qualified=owner&&['method','event','callback'].includes(kind)&&!signature.slice(0,signature.indexOf('(')<0?signature.length:signature.indexOf('(')).includes(owner+'.')&&!signature.startsWith(owner+':')?owner+(kind==='method'?':':'.')+signature:signature;
 ---
-<section class="api-member" data-api-member={id} data-kind={kind} data-member-name={name} data-deprecated={deprecated ? "" : undefined}>
-  <span class="api-member-icon-template" hidden>{kind !== 'constructor' && <ApiIcon kind={kind}/>}</span>
-  {deprecated && <div class="api-deprecation-controls"><span class="api-member-status">Deprecated</span><button class="api-deprecated-toggle" type="button" aria-expanded="false">Show details</button></div>}
-  <div class="api-member-content" hidden={deprecated}>
-  {(badges.length > 0) && (
-    <div class="api-member-badges">
-      {badges.map(label => <span class="api-member-status">{label}</span>)}
+<div data-api-member={id} data-kind={kind} data-member-name={name} data-deprecated={deprecated ? "" : undefined}>
+  <div class="titleSection">
+    <div class="titleRow">
+      {kind !== 'constructor' && <div class="iconWrapper"><ApiIcon kind={kind}/></div>}
+      <span class:list={['MuiTypography-root',deprecated?'Typography-h3-Typography-root-titleDeprecated':'Typography-h3-Typography-root-title','MuiTypography-inherit']} data-member-heading role="heading" aria-level="3">{nameParts(headingName).map((part:string,index:number)=><>{index>0&&<wbr/>}{part}</>)}</span>
     </div>
-  )}
-  {description && <p>{description}</p>}
-  <div class="MuiTypography-root Typography-body1-Typography-root-signatureContainer MuiTypography-inherit"><ApiPanelSignature signature={qualified} types={types}/></div>
-  <slot name="body" />
-  <slot name="description" />
+    {deprecated && <><ApiTags labels={['Deprecated']}/><button class="toggleIcon" type="button" aria-label="Show details" aria-expanded="false" aria-controls={'member-details-'+id}>Show details<MemberToggleIcon/></button></>}
+  </div>
+  <div class="MuiCollapse-root MuiCollapse-vertical MuiCollapse-entered" id={'member-details-'+id} hidden={deprecated}>
+    <div class="MuiCollapse-wrapper MuiCollapse-vertical"><div class="MuiCollapse-wrapperInner MuiCollapse-vertical">
+      {badges.length>0 && <div class="section"><ApiTags labels={badges}/></div>}
+      {description && <div class="section"><p class="MuiTypography-root Typography-body1-Typography-root-root MuiTypography-inherit MuiTypography-paragraph">{description}</p></div>}
+      <div class="section"><div class="MuiTypography-root Typography-body1-Typography-root-signatureContainer MuiTypography-inherit"><ApiPanelSignature signature={qualified} types={types}/></div></div>
+      {Astro.slots.has('body')&&<div class="section"><slot name="body"/></div>}
+      {Astro.slots.has('description')&&<div class="section"><slot name="description"/></div>}
   {(deprecation || Astro.slots.has('deprecation') || metadata.length > 0) && (
-    <details class="api-disclosure">
+    <div class="section"><details class="api-disclosure">
       <summary>{name} details</summary>
       {deprecation && <p>{deprecation}</p>}
       <slot name="deprecation" />
@@ -55,14 +62,14 @@ const qualified=owner&&['method','event','callback'].includes(kind)&&!signature.
           {metadata.map(({ label, value }) => <div><dt>{label}</dt><dd>{value}</dd></div>)}
         </dl>
       )}
-    </details>
+    </details></div>
   )}
   {[
     { title: 'Parameters', values: parameters },
     { title: 'Returns', values: returns },
   ].filter(group => group.values.length).map(group => <>
-    <h4>{group.title}</h4>
-    <dl class="api-parameter-list">{group.values.map(item => <div><dt><ApiSignature signature={item.name ? item.name+' : '+item.type : item.type} types={types} memberName={Boolean(item.name)}/></dt><dd>{item.description}</dd></div>)}</dl>
+    <div class="section"><div class="container"><span class="MuiTypography-root Typography-subtitle2-Typography-root-title MuiTypography-inherit">{group.title}</span>
+    <dl class="api-parameter-list">{group.values.map(item => <div><dt><ApiSignature signature={item.name ? item.name+' : '+item.type : item.type} types={types} memberName={Boolean(item.name)}/></dt><dd>{item.description}</dd></div>)}</dl></div></div>
   </>)}
   {values.length > 0 && <>
     <h4>Items</h4>
@@ -74,9 +81,9 @@ const qualified=owner&&['method','event','callback'].includes(kind)&&!signature.
     </div>
   </>}
   {Astro.slots.has('samples') && <>
-    <h4>Code Samples</h4>
-    <slot name="samples" />
+    <div class="section"><div class="codeSamplesTitleContainer"><span class="MuiTypography-root Typography-subtitle2-Typography-root-codeSamplesTitle MuiTypography-inherit">Code Samples</span></div><div class="singleCodeSampleContainer"><slot name="samples" /></div></div>
   </>}
+    </div></div>
   </div>
-  {deprecated && <template class="api-deprecated-content"></template>}
-</section>
+  <div class="dividerSpacing"><hr class="MuiDivider-root Divider-root-divider MuiDivider-fullWidth"/></div>
+</div>

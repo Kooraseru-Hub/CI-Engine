@@ -106,7 +106,7 @@
       const span=document.createElement('span');span.textContent=label;span.title=label;
       link.replaceChildren(...(icon?[icon.cloneNode(true)]:[]),span);
     };
-    for(const summary of document.querySelectorAll('.api-summary:not(details *)')){
+    for(const summary of document.querySelectorAll('[data-api-summary]:not(details *)')){
       const previous=summary.previousElementSibling;
       const heading=previous?.matches('h3[id]')?previous:previous?.querySelector('h3[id]');
       if(!(heading instanceof HTMLElement))continue;
@@ -126,12 +126,15 @@
     for(const member of members){
       const heading=headingFor(member.dataset.apiMember||'');
       if(!heading)continue;
-      const icon=member.querySelector('.api-member-icon-template svg');
+      const icon=member.querySelector('.titleSection .iconWrapper svg');
       const label=member.dataset.memberName||heading.textContent||'';
-      heading.classList.add('api-member-heading');
-      wrapperFor(heading).classList.add('api-member-heading-wrapper');
-      rename(heading,label.replace(/\(\)$/,''),icon);
-      for(const link of linksFor(heading.id)){
+      const id=heading.id;
+      const replacement=member.querySelector<HTMLElement>('[data-member-heading]');
+      if(replacement){
+        wrapperFor(heading).remove();
+        replacement.id=id;
+      }
+      for(const link of linksFor(id)){
         link.classList.add('api-toc-member');
         labelLink(link,label,icon);
       }
@@ -156,16 +159,21 @@
     }
   }
   for(const member of document.querySelectorAll<HTMLElement>('[data-api-member][data-deprecated]')){
-    const button=member.querySelector<HTMLButtonElement>('.api-deprecated-toggle');
-    const body=member.querySelector<HTMLElement>('.api-member-content');
-    const template=member.querySelector<HTMLTemplateElement>('.api-deprecated-content');
-    if(!button||!body||!template)continue;
-    template.content.append(body);
+    const button=member.querySelector<HTMLButtonElement>('.toggleIcon');
+    const body=member.querySelector<HTMLElement>(':scope > .MuiCollapse-root');
+    const divider=member.querySelector(':scope > .dividerSpacing');
+    if(!button||!body||!divider)continue;
+    // Keep the mounted subtree off-DOM while collapsed, preserving its initialized controls.
+    body.remove();
     button.addEventListener('click',()=>{
       const expanded=button.getAttribute('aria-expanded')==='true';
-      if(expanded){body.hidden=true;template.content.append(body);}
-      else {body.hidden=false;template.before(body);}
-      button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Show details':'Hide details';
+      if(expanded){hide();body.hidden=true;body.remove();}
+      else {body.hidden=false;divider.before(body);}
+      button.setAttribute('aria-expanded',String(!expanded));
+      const label=expanded?'Show details':'Hide details';
+      button.setAttribute('aria-label',label);
+      button.firstChild!.textContent=label;
+      button.querySelector('path')?.setAttribute('d',expanded?'M12 5.83 15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15z':'M7.41 5.59 12 10.17l4.59-4.58L18 7l-6 6-6-6zm0 12.82L12 13.83l4.59 4.58L18 17l-6-6-6 6z');
     });
   }
 </script>

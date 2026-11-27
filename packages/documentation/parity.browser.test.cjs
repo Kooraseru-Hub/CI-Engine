@@ -28,3 +28,33 @@ test("actual browser detects style, geometry and interaction changes",async t=>{
     assert(differences.some(x=>x.includes("details.open")));
     assert(!fs.readFileSync(path.join(directory,"ref","viewport.png")).equals(fs.readFileSync(path.join(directory,"changed","viewport.png"))));
 });
+
+test("rendered deprecated member collapses, expands, and re-collapses with the actual header",async t=>{
+    const product=path.resolve("build/fixture/site");
+    if(!fs.existsSync(path.join(product,"member/index.html")))return t.skip("standalone fixture not built");
+    const repository=process.env.GITHUB_REPOSITORY||"";
+    const [owner,name]=repository.split("/");
+    const base=process.env.DOCS_BASE||(owner&&name&&name.toLowerCase()!==owner.toLowerCase()+".github.io"?"/"+name+"/":"/");
+    const server=await serve(product,base);t.after(()=>server.close());
+    const browser=await chromium.launch();t.after(()=>browser.close());
+    const page=await browser.newPage({viewport:{width:1440,height:900}});
+    await page.goto(server.url+base+"member/",{waitUntil:"load"});
+    const old=page.locator('[data-api-member="old"]'),control=old.locator('button.toggleIcon'),heading=old.locator('[data-member-heading]');
+    await control.waitFor({state:"visible"});
+    assert.equal(await heading.getAttribute("id"),"old");
+    assert.equal(await page.locator("#old").count(),1);
+    assert.equal(await old.locator(':scope > .MuiCollapse-root').count(),0);
+    assert.equal(await old.locator('.titleSection .Label-root-tagLabel').innerText(),"Deprecated");
+    assert.equal(await control.getAttribute("aria-expanded"),"false");
+    await control.click();
+    await old.locator(':scope > .MuiCollapse-root').waitFor({state:"visible"});
+    assert.equal(await control.getAttribute("aria-expanded"),"true");
+    assert.equal(await old.locator('.Typography-body1-Typography-root-signatureContainer').innerText(),"Fixture.Old:number");
+    await control.click();
+    assert.equal(await old.locator(':scope > .MuiCollapse-root').count(),0);
+    assert.equal(await control.getAttribute("aria-expanded"),"false");
+    await page.locator('[data-api-summary] a[href="#old"]').click();
+    assert.equal(new URL(page.url()).hash,"#old");
+    assert.equal(await page.locator('#old').count(),1);
+    assert.equal(await page.locator('[data-api-member="current"] .MuiCollapse-root').count(),1);
+});

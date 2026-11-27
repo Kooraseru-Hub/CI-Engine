@@ -27,7 +27,7 @@ const home=import.meta.env.BASE_URL;
 </style>
 
 <script>
-  for (const table of document.querySelectorAll('.sl-markdown-content table:not(.api-enum-table)')) {
+  for (const table of document.querySelectorAll('.sl-markdown-content table:not(.api-enum-table):not(.MuiTable-root)')) {
     if (table.parentElement?.classList.contains('docs-table-scroll')) continue;
     const wrapper = document.createElement('div');
     wrapper.className = 'docs-table-scroll';

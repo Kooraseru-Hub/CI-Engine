@@ -1,0 +1,29 @@
+---
+title: Member fixture
+description: Independent deprecated-member interaction specimen.
+---
+import ApiMember from '../../components/ApiMember.astro';
+import ApiSummary from '../../components/ApiSummary.astro';
+import ApiInteractions from '../../components/ApiInteractions.astro';
+
+## Summary
+
+### Properties
+
+<ApiSummary members={[{kind:"property",signature:"Current: boolean",href:"#current"},{kind:"property",signature:"Old: float",href:"#old",deprecated:true}]} />
+
+## Properties Reference
+
+### current
+
+<ApiMember id="current" name="Current" kind="property" signature="Fixture.Current: boolean" description="Current property."/>
+
+### old
+
+<ApiMember id="old" name="Old" kind="property" signature="Fixture.Old: float" description="Deprecated property." deprecated>
+<div slot="body">
+This content must be absent from the collapsed DOM.
+</div>
+</ApiMember>
+
+<ApiInteractions />
