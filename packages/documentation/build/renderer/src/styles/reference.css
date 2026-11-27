@@ -375,3 +375,6 @@ a.api-type { cursor:pointer; }
 .docs-article .docs-luau-playground { display:block; width:100%; border:1px solid var(--docs-border); border-radius:4px; background:var(--docs-surface-secondary); }
 .docs-article .docs-playground-sample > p { margin:0 0 16px; }
 .docs-article .docs-playground-sample > h4 { margin:0; }
+
+/* Captured multiline signatures are three lines with 3px total inter-row spacing. */
+.Typography-body1-Typography-root-signatureContainer .multilineSignature {row-gap:1.5px;}

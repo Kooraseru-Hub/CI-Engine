@@ -71,3 +71,6 @@ main{min-width:0;flex:1;max-width:var(--docs-article-width);margin-inline:auto;}
 }
 @media(max-width:37.499rem){:root{--sl-nav-height:64px;--docs-gutter:20px;}.docs-header{gap:12px;}.docs-header-source{margin-inline-start:0;}}
 @media print{.docs-project-rail,.sidebar-pane,.right-sidebar,.docs-header,docs-mobile-toc{display:none!important;}.main-frame{margin:0;padding:0;}main{max-width:none;}}
+
+/* Mobile title starts 144px below the viewport top in the captured layout. */
+@media(max-width:37.499rem){.main-frame{padding-block-start:calc(var(--sl-nav-height) + var(--sl-mobile-toc-height) + 24px);}}

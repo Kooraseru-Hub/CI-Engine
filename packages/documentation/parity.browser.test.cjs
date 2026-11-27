@@ -166,3 +166,24 @@ test("compiled article renders captured inline typography without altering code 
  assert.equal(await paragraph.locator("span.inline-code[role=code]").innerText(),"literal");
  assert.equal(await paragraph.locator("span.inline-code > a").getAttribute("href"),"#current");
 });
+
+
+test("callable signature geometry and return type nesting follow captured structure",async t=>{
+ const product=path.resolve("build/fixture/site");
+ if(!fs.existsSync(path.join(product,"member/index.html")))return t.skip("standalone fixture not built");
+ const [owner,name]=(process.env.GITHUB_REPOSITORY||"").split("/");
+ const base=process.env.DOCS_BASE||(owner&&name&&name.toLowerCase()!==owner.toLowerCase()+".github.io"?"/"+name+"/":"/");
+ const server=await serve(product,base);t.after(()=>server.close());
+ const browser=await chromium.launch();t.after(()=>browser.close());
+ const page=await browser.newPage({viewport:{width:1440,height:900}});
+ await page.route("https://play.luau.org/**",route=>route.fulfill({contentType:"text/html",body:""}));
+ await page.goto(server.url+base+"member/",{waitUntil:"domcontentloaded"});
+ const panel=page.locator('[data-api-member="call"] .Typography-body1-Typography-root-signatureContainer');
+ assert.equal(await panel.locator('.multilineSignature > div').count(),3);
+ assert.equal(await panel.locator('.multilineSignature > div:last-child > .Typography-body1-Typography-root > span > .parameterType-dashedTypeWrapper').count(),1);
+ const height=await panel.evaluate(el=>el.getBoundingClientRect().height);
+ assert(Math.abs(height-87.78125)<=1,"multiline signature height: "+height);
+ await page.setViewportSize({width:390,height:844});
+ const top=await page.locator("#_top").evaluate(el=>el.getBoundingClientRect().top);
+ assert(Math.abs(top-144)<=1,"mobile title y: "+top);
+});

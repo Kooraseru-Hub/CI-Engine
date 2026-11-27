@@ -111,3 +111,5 @@ html { scroll-behavior:auto; scroll-padding-top:var(--docs-anchor-offset); }
 .docs-article [role=tab]{background:none;border:0;padding:8px 16px;}
 .docs-article [role=tab][aria-selected=true]{border-bottom:2px solid var(--docs-link);}
 .docs-article [data-tab-label]{padding-block:12px;}
+
+.docs-article .docs-playground-sample h5{font-size:16px;font-weight:700;margin:0 0 12px;}
