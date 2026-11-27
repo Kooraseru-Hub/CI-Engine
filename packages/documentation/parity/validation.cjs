@@ -88,7 +88,7 @@ function Create(settings) {
     return {async Check({root,product,output,mode,rule}) {
         const experiments=discover(path.join(root,rule.directory,"experiments"));
         const findings=[],coverage=[];
-        const documents=loadCorpus(root,settings.sources), registered=corpusCoverage(documents,experiments), components=catalogue(documents);
+        const documents=loadCorpus(root,settings.sources), registered=corpusCoverage(documents,experiments,settings.pairedSources?settings.candidates:[]), components=catalogue(documents);
         const candidates=[];
         const declaredCandidates=settings.candidates;
         assert(Array.isArray(declaredCandidates)&&declaredCandidates.length,"Configure at least one component candidate");
@@ -98,6 +98,11 @@ function Create(settings) {
             assert(typeof item.route==="string"&&item.route.startsWith("/")&&!item.route.startsWith("//")&&!item.route.includes(String.fromCharCode(92))&&!item.route.includes("?")&&!item.route.includes("#")&&!item.route.split("/").some(part=>part===".."||part==="."),"Invalid component candidate route");
             assert(typeof item.root==="string"&&item.root.trim(),"Missing component candidate root");
             assert(["width","height"].every(k=>Number.isInteger(item.viewport?.[k])&&item.viewport[k]>0),"Invalid component candidate viewport");
+        }
+        if(settings.pairedSources){
+            assert.deepEqual([...candidateIds].sort(),documents.map(d=>d.id).sort(),"Every configured reference must have exactly one candidate");
+            assert.equal(new Set(declaredCandidates.map(c=>c.route)).size,declaredCandidates.length,"Paired candidate routes must be unique");
+            for(const experiment of experiments) assert.equal(experiment.spec.candidate,declaredCandidates.find(c=>c.id===experiment.id)?.route,"Measured experiment must target the paired candidate");
         }
         fs.mkdirSync(output,{recursive:true});
         fs.writeFileSync(path.join(output,"corpus-report.json"),JSON.stringify({documents:registered,components},null,2)+"\n");
@@ -118,8 +123,18 @@ function Create(settings) {
                         assert.equal(url.origin,server.url,"Component candidate must be local");
                         assert(url.pathname.startsWith(base),"Component candidate escaped site base");
                         await capture(browser,url.href,{id:item.id,viewport:item.viewport,elements:[],structure:{candidate:item.root,normalization:settings.classNormalization}},"candidate",destination,server.url);
-                        candidates.push({id:item.id,tree:JSON.parse(fs.readFileSync(path.join(destination,"structure.json"),"utf8"))});
-                        coverage.push({id,status:"captured"});
+                        const tree=JSON.parse(fs.readFileSync(path.join(destination,"structure.json"),"utf8"));
+                        candidates.push({id:item.id,tree});
+                        if(settings.pairedSources){
+                            const source=documents.find(d=>d.id===item.id);
+                            const report=compareStructure(source.tree,tree);
+                            fs.writeFileSync(path.join(destination,"structure-report.json"),JSON.stringify(report,null,2)+"\n");
+                            const total=Object.values(report.counts).reduce((n,x)=>n+x,0);
+                            const detail=id+": "+JSON.stringify({expected:report.expectedCount,actual:report.actualCount,matched:report.matched,matchingNamedSubtrees:report.matchingNamedSubtrees,...report.counts});
+                            console.log("PAIRED_STRUCTURE "+detail);
+                            if(total) findings.push({file:rule.readme,line:1,column:1,message:detail,infrastructure:false});
+                            coverage.push({id,status:total?"different":"passed"});
+                        } else coverage.push({id,status:"captured"});
                     } catch(error){
                         findings.push({file:rule.readme,line:1,column:1,message:id+": "+String(error.message||error),infrastructure:true});
                         coverage.push({id,status:"failed"});

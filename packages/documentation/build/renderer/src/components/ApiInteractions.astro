@@ -2,7 +2,16 @@
   let sampleId = 0;
   for (const sample of document.querySelectorAll<HTMLElement>('.sl-markdown-content .expressive-code')) {
     const pre = sample.querySelector('pre');
-    if (!pre || pre.querySelectorAll('.ec-line').length <= 19) continue;
+    if (!pre) continue;
+    const lines=[...pre.querySelectorAll('.ec-line')];
+    for(const [index,line] of lines.entries()){
+      const body=line.querySelector('.code');if(!body)continue;
+      const row=document.createElement('div');row.className='row';
+      const number=document.createElement('span');number.className='Typography-code';number.dataset.lineNumber=String(index+1);number.setAttribute('aria-hidden','true');
+      const tokens=document.createElement('span');tokens.append(...body.childNodes);
+      row.append(number,tokens);line.replaceWith(row);
+    }
+    if (lines.length <= 19) continue;
     if (!pre.id) pre.id = 'docs-code-sample-' + ++sampleId;
     sample.setAttribute('data-collapsed', '');
     const toggle = document.createElement('button');
@@ -145,5 +154,18 @@
       new MutationObserver(reveal).observe(toc,{subtree:true,attributes:true,attributeFilter:['aria-current']});
       reveal();
     }
+  }
+  for(const member of document.querySelectorAll<HTMLElement>('[data-api-member][data-deprecated]')){
+    const button=member.querySelector<HTMLButtonElement>('.api-deprecated-toggle');
+    const body=member.querySelector<HTMLElement>('.api-member-content');
+    const template=member.querySelector<HTMLTemplateElement>('.api-deprecated-content');
+    if(!button||!body||!template)continue;
+    template.content.append(body);
+    button.addEventListener('click',()=>{
+      const expanded=button.getAttribute('aria-expanded')==='true';
+      if(expanded){body.hidden=true;template.content.append(body);}
+      else {body.hidden=false;template.before(body);}
+      button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Show details':'Hide details';
+    });
   }
 </script>

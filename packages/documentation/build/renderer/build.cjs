@@ -33,14 +33,21 @@ function assertDirectory(input) {
     throw new Error('Expected a non-symlink documentation directory: ' + input);
 }
 
-function stageDocs(source, destination, skipRepository = false) {
+function stageDocs(source, destination, skipRepository = false, depth = 0) {
   assertDirectory(source);
   fs.mkdirSync(destination, { recursive: true });
   for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) throw new Error('Refusing linked documentation source: ' + entry.name);
     if (skipRepository && entry.name === 'repository') continue;
     const from = path.join(source, entry.name), to = path.join(destination, entry.name);
-    if (entry.isDirectory()) stageDocs(from, to);
+    if (entry.isDirectory()) stageDocs(from, to, false, depth + 1);
+    else if (entry.isFile() && entry.name.endsWith('.api.yaml')) {
+      const { compileReference } = require('./api-source.cjs');
+      const data = require('yaml').parse(fs.readFileSync(from, 'utf8'));
+      const target = to.replace(/\.api\.yaml$/, '.mdx');
+      if (fs.existsSync(target) || fs.existsSync(from.replace(/\.api\.yaml$/, '.mdx'))) throw Error('Conflicting API source: ' + from);
+      fs.writeFileSync(target, compileReference(data, '../'.repeat(depth + 2) + 'components/'));
+    }
     else if (entry.isFile() && /\.(?:md|mdx|mdoc)$/.test(entry.name)) fs.copyFileSync(from, to);
   }
 }
@@ -56,7 +63,7 @@ function prepareSite(options = {}) {
     fs.rmSync(staged, { recursive: true });
   }
   stageDocs(source, staged, true);
-  if (!fs.existsSync(path.join(staged, 'index.md')))
+  if (!['index.md','index.mdx','index.mdoc'].some(name=>fs.existsSync(path.join(staged,name))))
     throw new Error('Missing staged documentation homepage');
   fs.mkdirSync(path.dirname(stagedCss), { recursive: true });
   if (fs.existsSync(themeFile)) {
@@ -92,8 +99,7 @@ function copyAssets(source, destination) {
   }
 }
 
-function build() {
-  prepareSite();
+async function build() {
   if (fs.existsSync(output)) {
     if (fs.lstatSync(output).isSymbolicLink()) throw new Error('Refusing symlinked Pages output');
     fs.rmSync(output, { recursive: true });
@@ -113,6 +119,7 @@ function build() {
     }
     run(npm, args, site);
   }
+  prepareSite();
   const installed = JSON.parse(fs.readFileSync(astroManifest, 'utf8'));
   const bin = typeof installed.bin === 'string' ? installed.bin : installed.bin?.astro;
   if (typeof bin !== 'string' || !bin) throw new Error('Astro installation has no CLI entry point');
@@ -126,6 +133,7 @@ function build() {
   }
   fs.cpSync(staging, output, { recursive: true, force: true });
   copyAssets(images, path.join(output, 'images'));
+  if (process.env.DOCS_ASSET_MANIFEST) await require('./reference-assets.cjs').stageAssets(path.resolve(root,process.env.DOCS_ASSET_MANIFEST),path.join(output,'images'),path.join(root,'build/cache/documentation-assets'));
   if (!fs.existsSync(path.join(output, 'index.html'))) {
     throw new Error('Starlight failed to produce static output index.html');
   }
@@ -134,6 +142,5 @@ function build() {
 
 module.exports = { build, prepareSite, stageFavicon, copyAssets, root, site, output, docs };
 if (require.main === module) {
-  try { if (process.argv.includes('--prepare')) prepareSite(); else build(); }
-  catch (error) { console.error(String(error)); process.exitCode = 1; }
+  Promise.resolve().then(()=>process.argv.includes('--prepare')?prepareSite():build()).catch(error=>{console.error(String(error));process.exitCode=1;});
 }

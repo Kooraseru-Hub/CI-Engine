@@ -271,3 +271,31 @@ a.api-type { cursor:pointer; }
   padding: 0;
   color: var(--docs-heading);
 }
+
+.api-deprecated-toggle {appearance:none;border:1px solid var(--docs-border);border-radius:4px;padding:6px 12px;background:var(--docs-surface-secondary);color:var(--docs-heading);font:inherit;cursor:pointer;}
+.api-member-content[hidden] {display:none!important;}
+.api-deprecated-toggle:hover {background:var(--docs-hover);}
+
+/* Shared reference signature grammar, rendered as semantic name/type fragments. */
+.Typography-body1-Typography-root-signatureContainer {color:var(--docs-title);font-family:'Builder Mono',monospace;white-space:pre-wrap;overflow-wrap:anywhere;}
+.Typography-body1-Typography-root-signatureContainer :is(.multilineSignature,.multilineSignature>div,.parametersContainer){margin:0!important;padding-block:0;line-height:1.4;}
+.Typography-body1-Typography-root-signatureContainer .parametersContainer {padding-inline-start:24px;}
+.Typography-body1-Typography-root-memberName {font:inherit;}
+.spaceSuffixedColonWrapper {padding-inline-end:4px;}
+.parentheses {padding-inline-end:2px;}
+.parenthesesInnerSpace {padding-inline-start:2px;}
+.parameterType-dashedTypeWrapper {display:inline;}
+.parameterType-dashedTypeWrapper a {color:inherit;text-decoration:none;}
+.parameterType-dashedTypeWrapper .dashedType {font-family:inherit;font-size:14px;line-height:1.4;text-decoration:underline;text-decoration-style:dashed;text-underline-offset:4px;cursor:help;}
+.parameterType-dashedTypeWrapper [data-api-type]:focus-visible {outline:2px solid var(--docs-link);outline-offset:2px;}
+.api-deprecation-controls {display:flex;align-items:center;gap:8px;}
+/* Native line-number gutters, retaining Expressive Code's source-backed copy action. */
+.sl-markdown-content .expressive-code pre:has(.row) {padding:0!important;overflow:auto;}
+.sl-markdown-content .expressive-code pre:has(.row) code {display:block;padding:0;margin:0;min-width:max-content;}
+.sl-markdown-content .expressive-code .row {display:flex;align-items:stretch;margin:0;line-height:1.5;text-rendering:geometricPrecision;}
+.sl-markdown-content .expressive-code .row > .Typography-code {font-family:'Builder Mono',monospace;font-weight:400;font-size:inherit;line-height:1.4;color:var(--docs-text);width:51.5px;flex:0 0 51.5px;text-align:right;user-select:none;padding:0 16px;background:var(--docs-surface-secondary);}
+.sl-markdown-content .expressive-code .row > .Typography-code::before {content:attr(data-line-number);}
+.sl-markdown-content .expressive-code .row > span:last-child {flex:1;padding:0 20px;white-space:pre;}
+.sl-markdown-content .expressive-code .row:first-of-type>span {padding-top:8px;}
+.sl-markdown-content .expressive-code .row:last-of-type>span {padding-bottom:8px;}
+.sl-markdown-content .expressive-code .row > span:last-child > span {color:var(--0,var(--docs-text));}

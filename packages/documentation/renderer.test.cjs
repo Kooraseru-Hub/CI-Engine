@@ -34,3 +34,39 @@ test("one observed variant does not certify all reference variants",()=>{
  const result=compareCatalogue([{id:"a",tree:tree("span")},{id:"b",tree:tree("button")}],[{id:"candidate",tree:tree("span")}]);
  assert.equal(result[0].status,"matching");assert.equal(result[0].matchingShapes.length,1);assert.equal(result[0].untestedShapes.length,1);
 });
+
+test("structured API source compiles through the shared renderer without pre-rendered HTML",()=>{
+ const {compileReference}=require("./build/renderer/api-source.cjs");
+ const result=compileReference({name:"Example",type:"class",summary:"A fixture.",methods:[{name:"Example:Call",parameters:[{name:"x",type:"number",summary:"Input"}],returns:[{type:"boolean",summary:"Result"}],description:"Uses a `Class.Example|fixture`."}]});
+ assert.match(result,/<ApiSummary /);assert.match(result,/<ApiMember /);assert.match(result,/Example:Call\(x: number\): boolean/);
+ assert.match(result,/Uses a `fixture`\./);assert.doesNotMatch(result,/Class\.Example\|fixture/);
+});
+test("paired corpus coverage is registered independently of screenshot scenarios",()=>{
+ const {coverage}=require("./parity/corpus.cjs");
+ assert.equal(coverage([{id:"a",metadata:{url:"https://example.org/a"}}],[],[{id:"a"}])[0].status,"direct-comparison");
+});
+
+test("external documentation assets must be pinned and verified",async t=>{
+ const {stageAssets,validateManifest}=require("./build/renderer/reference-assets.cjs");
+ const {createHash}=require("node:crypto");
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"docs-assets-"));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const bytes=Buffer.from("asset"),entry={path:"nested/image.png",url:"https://example.org/image.png",sha256:createHash("sha256").update(bytes).digest("hex"),size:bytes.length};
+ const manifest=path.join(root,"assets.json");fs.writeFileSync(manifest,JSON.stringify([entry]));
+ assert.throws(()=>validateManifest([{...entry,path:"../escape"}]));
+ assert.throws(()=>validateManifest([entry,entry]));
+ await stageAssets(manifest,path.join(root,"out"),path.join(root,"cache"),async()=>new Response(bytes));
+ assert.deepEqual(fs.readFileSync(path.join(root,"out/nested/image.png")),bytes);
+ await stageAssets(manifest,path.join(root,"second"),path.join(root,"cache"),async()=>{throw Error("must use verified cache");});
+ fs.writeFileSync(manifest,JSON.stringify([{...entry,sha256:"0".repeat(64)}]));
+ await assert.rejects(stageAssets(manifest,path.join(root,"out"),path.join(root,"cache"),async()=>new Response(bytes)),/integrity mismatch/);
+});
+
+test("signature formatting distinguishes one parameter from multiple parameters",async()=>{
+ const {parseSignature,formatSignature,normalizeType}=await import("./build/renderer/src/data/format-signature.mjs");
+ assert.deepEqual(parseSignature("Part:Method(x: number, fn: (a: number, b: number) -> boolean): string").args,["x: number","fn: (a: number, b: number) -> boolean"]);
+ assert.equal(formatSignature("Part:Method(x: number): boolean"),null);
+ assert.deepEqual(formatSignature("Part:Method(a: number, b: string): boolean"),{before:"Part:Method(",args:"a: number, b: string",after:"): boolean"});
+ assert.equal(normalizeType("List<float>"),"{number}");
+ assert.equal(normalizeType("Material",{Material:{category:"Enum"}}),"Enum.Material");
+ assert.equal(normalizeType("Enum.Material",{Material:{category:"Enum"}}),"Enum.Material");
+});

@@ -1,0 +1,8 @@
+---
+interface Props {items:{name:string,value:number,description:string,deprecated?:boolean}[]}
+const {items}=Astro.props;
+---
+<div class="api-enum-scroll" role="region" aria-label="Enumeration items" tabindex="0">
+<table class="api-enum-table"><thead><tr><th scope="col">Name</th><th scope="col">Value</th><th scope="col">Summary</th></tr></thead><tbody>
+{items.map(item=><tr><td><code>{item.name}</code>{item.deprecated&&<span class="api-member-status">Deprecated</span>}</td><td>{item.value}</td><td>{item.description}</td></tr>)}
+</tbody></table></div>
