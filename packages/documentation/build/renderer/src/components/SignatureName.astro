@@ -1,0 +1,5 @@
+---
+import {nameParts} from '../data/format-signature.mjs';
+const {name}=Astro.props;
+---
+<span class="MuiTypography-root Typography-body1-Typography-root-memberName MuiTypography-inherit">{nameParts(name).map((part:string,index:number)=><>{index>0&&<wbr/>}{part}</>)}</span>

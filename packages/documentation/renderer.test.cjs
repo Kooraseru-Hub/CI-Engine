@@ -60,3 +60,13 @@ test("external documentation assets must be pinned and verified",async t=>{
  fs.writeFileSync(manifest,JSON.stringify([{...entry,sha256:"0".repeat(64)}]));
  await assert.rejects(stageAssets(manifest,path.join(root,"out"),path.join(root,"cache"),async()=>new Response(bytes)),/integrity mismatch/);
 });
+
+test("signature formatting distinguishes one parameter from multiple parameters",async()=>{
+ const {parseSignature,formatSignature,normalizeType}=await import("./build/renderer/src/data/format-signature.mjs");
+ assert.deepEqual(parseSignature("Part:Method(x: number, fn: (a: number, b: number) -> boolean): string").args,["x: number","fn: (a: number, b: number) -> boolean"]);
+ assert.equal(formatSignature("Part:Method(x: number): boolean"),null);
+ assert.deepEqual(formatSignature("Part:Method(a: number, b: string): boolean"),{before:"Part:Method(",args:"a: number, b: string",after:"): boolean"});
+ assert.equal(normalizeType("List<float>"),"{number}");
+ assert.equal(normalizeType("Material",{Material:{category:"Enum"}}),"Enum.Material");
+ assert.equal(normalizeType("Enum.Material",{Material:{category:"Enum"}}),"Enum.Material");
+});

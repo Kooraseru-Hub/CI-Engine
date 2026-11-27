@@ -3,11 +3,12 @@ import ApiIcon from './ApiIcon.astro';
 import ApiSignature from './ApiSignature.astro';
 import type { TypeReferences } from './ApiSignature.astro';
 import type { Props as IconProps } from './ApiIcon.astro';
-import { formatSignature } from '../data/format-signature.mjs';
+import ApiPanelSignature from './ApiPanelSignature.astro';
 interface Entry { name: string; type: string; description: string }
 interface Props {
   id: string;
   name: string;
+  owner?: string;
   kind: IconProps['kind'];
   signature: string;
   description?: string;
@@ -20,7 +21,7 @@ interface Props {
   metadata?: { label: string; value: string }[];
 }
 const {
-  id, name, kind, signature, description, types, parameters = [], returns = [],
+  id, name, owner, kind, signature, description, types, parameters = [], returns = [],
   values = [], deprecation, deprecated = Boolean(deprecation), metadata = [],
 } = Astro.props;
 const threadLabels: Record<string, string> = { ReadSafe: 'Read Parallel', Safe: 'Write Parallel', LocalSafe: 'Local Safe' };
@@ -29,11 +30,11 @@ const badges = metadata.flatMap(({ label, value }) => {
   if (label === 'Simulation access' && value === 'Yes') return ['Simulation Access'];
   return [];
 });
-const multiline = ['function','method','constructor','operator'].includes(kind) ? formatSignature(signature) : null;
+const qualified=owner&&['method','event','callback'].includes(kind)&&!signature.slice(0,signature.indexOf('(')<0?signature.length:signature.indexOf('(')).includes(owner+'.')&&!signature.startsWith(owner+':')?owner+(kind==='method'?':':'.')+signature:signature;
 ---
 <section class="api-member" data-api-member={id} data-kind={kind} data-member-name={name} data-deprecated={deprecated ? "" : undefined}>
   <span class="api-member-icon-template" hidden>{kind !== 'constructor' && <ApiIcon kind={kind}/>}</span>
-  {deprecated && <button class="api-deprecated-toggle" type="button" aria-expanded="false">Show details</button>}
+  {deprecated && <div class="api-deprecation-controls"><span class="api-member-status">Deprecated</span><button class="api-deprecated-toggle" type="button" aria-expanded="false">Show details</button></div>}
   <div class="api-member-content" hidden={deprecated}>
   {(badges.length > 0) && (
     <div class="api-member-badges">
@@ -41,11 +42,7 @@ const multiline = ['function','method','constructor','operator'].includes(kind) 
     </div>
   )}
   {description && <p>{description}</p>}
-  <div class="MuiTypography-root Typography-body1-Typography-root-signatureContainer MuiTypography-inherit">{multiline ? <div class="multilineSignature">
-    <div><ApiSignature signature={multiline.before} types={types} memberName/></div>
-    <div class="parametersContainer"><ApiSignature signature={multiline.args} types={types}/></div>
-    <div><ApiSignature signature={multiline.after} types={types}/></div>
-  </div> : <ApiSignature signature={signature} types={types} memberName/>}</div>
+  <div class="MuiTypography-root Typography-body1-Typography-root-signatureContainer MuiTypography-inherit"><ApiPanelSignature signature={qualified} types={types}/></div>
   <slot name="body" />
   <slot name="description" />
   {(deprecation || Astro.slots.has('deprecation') || metadata.length > 0) && (
