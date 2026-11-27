@@ -99,7 +99,7 @@ function copyAssets(source, destination) {
   }
 }
 
-function build() {
+async function build() {
   if (fs.existsSync(output)) {
     if (fs.lstatSync(output).isSymbolicLink()) throw new Error('Refusing symlinked Pages output');
     fs.rmSync(output, { recursive: true });
@@ -133,6 +133,7 @@ function build() {
   }
   fs.cpSync(staging, output, { recursive: true, force: true });
   copyAssets(images, path.join(output, 'images'));
+  if (process.env.DOCS_ASSET_MANIFEST) await require('./reference-assets.cjs').stageAssets(path.resolve(root,process.env.DOCS_ASSET_MANIFEST),path.join(output,'images'),path.join(root,'build/cache/documentation-assets'));
   if (!fs.existsSync(path.join(output, 'index.html'))) {
     throw new Error('Starlight failed to produce static output index.html');
   }
@@ -141,6 +142,5 @@ function build() {
 
 module.exports = { build, prepareSite, stageFavicon, copyAssets, root, site, output, docs };
 if (require.main === module) {
-  try { if (process.argv.includes('--prepare')) prepareSite(); else build(); }
-  catch (error) { console.error(String(error)); process.exitCode = 1; }
+  Promise.resolve().then(()=>process.argv.includes('--prepare')?prepareSite():build()).catch(error=>{console.error(String(error));process.exitCode=1;});
 }

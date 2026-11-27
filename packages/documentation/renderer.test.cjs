@@ -45,3 +45,18 @@ test("paired corpus coverage is registered independently of screenshot scenarios
  const {coverage}=require("./parity/corpus.cjs");
  assert.equal(coverage([{id:"a",metadata:{url:"https://example.org/a"}}],[],[{id:"a"}])[0].status,"direct-comparison");
 });
+
+test("external documentation assets must be pinned and verified",async t=>{
+ const {stageAssets,validateManifest}=require("./build/renderer/reference-assets.cjs");
+ const {createHash}=require("node:crypto");
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"docs-assets-"));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const bytes=Buffer.from("asset"),entry={path:"nested/image.png",url:"https://example.org/image.png",sha256:createHash("sha256").update(bytes).digest("hex"),size:bytes.length};
+ const manifest=path.join(root,"assets.json");fs.writeFileSync(manifest,JSON.stringify([entry]));
+ assert.throws(()=>validateManifest([{...entry,path:"../escape"}]));
+ assert.throws(()=>validateManifest([entry,entry]));
+ await stageAssets(manifest,path.join(root,"out"),path.join(root,"cache"),async()=>new Response(bytes));
+ assert.deepEqual(fs.readFileSync(path.join(root,"out/nested/image.png")),bytes);
+ await stageAssets(manifest,path.join(root,"second"),path.join(root,"cache"),async()=>{throw Error("must use verified cache");});
+ fs.writeFileSync(manifest,JSON.stringify([{...entry,sha256:"0".repeat(64)}]));
+ await assert.rejects(stageAssets(manifest,path.join(root,"out"),path.join(root,"cache"),async()=>new Response(bytes)),/integrity mismatch/);
+});
