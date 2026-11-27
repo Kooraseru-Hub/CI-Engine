@@ -115,3 +115,11 @@ test("documentation typography preserves links and code semantics without touchi
  assert.equal(block.children[0].tagName,"code");
  assert.deepEqual(block.children[0].properties,{});
 });
+
+
+test("native route and outline preserve hierarchy and avoid framework-generated wrappers",async()=>{
+ const {routeFor,buildOutline}=await import("./build/renderer/src/data/navigation.mjs");
+ assert.equal(routeFor("index"),"");assert.equal(routeFor("guides/intro"),"guides/intro");
+ assert.deepEqual(buildOutline([{depth:2,slug:"a",text:"A"},{depth:3,slug:"b",text:"B"},{depth:2,slug:"c",text:"C"}]).map(x=>[x.slug,x.children.map(y=>y.slug)]),[["_top",[]],["a",["b"]],["c",[]]]);
+ const manifest=require("./build/renderer/package.json");assert(!manifest.dependencies["@astrojs/starlight"]);assert(manifest.dependencies["@astrojs/mdx"]);
+});

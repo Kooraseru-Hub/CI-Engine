@@ -25,9 +25,9 @@
   function update(){
     const items=ids.map(id=>({id,heading:document.getElementById(id)})).filter((item):item is {id:string;heading:HTMLElement}=>Boolean(item.heading));
     if(!items.length)return;
-    const header=document.querySelector('header')?.getBoundingClientRect().height||0;
+    const header=document.querySelector('.docs-header')?.getBoundingClientRect().height||0;
     const mobile=tocs.find(toc=>toc.tagName==='DOCS-MOBILE-TOC');
-    const bar=mobile?.querySelector('summary')?.getBoundingClientRect().height||0;
+    const bar=mobile?.querySelector(':scope > nav > details > summary')?.getBoundingClientRect().height||0;
     const scrollPadding=parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
     const anchorOffset = Number.isFinite(scrollPadding) ? scrollPadding : header + bar + 16;
     const threshold = anchorOffset + Math.min(96, Math.round(innerHeight * 0.1));
@@ -47,7 +47,7 @@
   let frame=0;
   function schedule(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;update();});}
   for(const toc of tocs){
-    const details=toc.querySelector('details');
+    const details=toc.querySelector(':scope > nav > details');
     for(const link of toc.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')){
       link.addEventListener('click',()=>{
         if(details)details.open=false;

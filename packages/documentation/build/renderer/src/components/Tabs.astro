@@ -1,0 +1,16 @@
+<div data-docs-tabs><slot/></div>
+<script>
+for(const group of document.querySelectorAll<HTMLElement>('[data-docs-tabs]')){
+  const panels=[...group.querySelectorAll<HTMLElement>(':scope > [data-tab-label]')];
+  const tabs=document.createElement('div');tabs.setAttribute('role','tablist');
+  const prefix='docs-tabs-'+[...document.querySelectorAll('[data-docs-tabs]')].indexOf(group);
+  const buttons=panels.map((panel,i)=>{
+    const button=document.createElement('button');button.type='button';button.setAttribute('role','tab');
+    button.id=prefix+'-tab-'+i;panel.id=prefix+'-panel-'+i;button.setAttribute('aria-controls',panel.id);panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',button.id);button.textContent=panel.dataset.tabLabel||'';
+    tabs.append(button);return button;
+  });
+  const select=(i:number,focus=false)=>buttons.forEach((button,j)=>{button.setAttribute('aria-selected',String(j===i));button.tabIndex=j===i?0:-1;panels[j].hidden=j!==i;if(focus&&j===i)button.focus();});
+  buttons.forEach((button,i)=>{button.addEventListener('click',()=>select(i));button.addEventListener('keydown',event=>{const next=event.key==='ArrowRight'?(i+1)%buttons.length:event.key==='ArrowLeft'?(i+buttons.length-1)%buttons.length:event.key==='Home'?0:event.key==='End'?buttons.length-1:-1;if(next>=0){event.preventDefault();select(next,true);}});});
+  group.prepend(tabs);select(0);
+}
+</script>

@@ -2,11 +2,11 @@
 import DocumentationUtilities from './DocumentationUtilities.astro';
 import TocList from './TocList.astro';
 import TocController from './TocController.astro';
-const {toc}=Astro.locals.starlightRoute;
+const {toc}=Astro.props;
 ---
 {toc && <docs-toc>
   <nav aria-labelledby="docs-toc-title">
-    <h2 id="docs-toc-title">{Astro.locals.t('tableOfContents.onThisPage')}</h2>
+    <h2 id="docs-toc-title">On this page</h2>
     <TocList items={toc.items}/>
   </nav>
   <DocumentationUtilities/>

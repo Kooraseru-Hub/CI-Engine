@@ -15,7 +15,9 @@
   "dependencies": {
     "astro": "7.4.12",
     "@astrojs/markdown-remark": "7.3.9",
-    "@astrojs/starlight": "0.43.1",
+    "@astrojs/mdx": "8.1.6",
+    "astro-expressive-code": "0.44.0",
+    "pagefind": "1.5.2",
     "playwright": "1.65.1",
     "yaml": "2.8.1",
     "lz-string": "1.5.0"

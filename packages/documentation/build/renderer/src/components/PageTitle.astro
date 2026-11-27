@@ -1,6 +1,5 @@
 ---
-const {entry}=Astro.locals.starlightRoute;
-const title=entry.data.title;
+const {title}=Astro.props;
 const titleParts=title.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/);
 const home=import.meta.env.BASE_URL;
 ---
@@ -28,7 +27,7 @@ const home=import.meta.env.BASE_URL;
 </style>
 
 <script>
-  for (const table of document.querySelectorAll('.sl-markdown-content table:not(.api-enum-table):not(.MuiTable-root)')) {
+  for (const table of document.querySelectorAll('.docs-article table:not(.api-enum-table):not(.MuiTable-root)')) {
     if (table.parentElement?.classList.contains('docs-table-scroll')) continue;
     const wrapper = document.createElement('div');
     wrapper.className = 'docs-table-scroll';

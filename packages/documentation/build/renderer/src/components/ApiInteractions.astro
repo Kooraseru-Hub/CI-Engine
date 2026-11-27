@@ -1,6 +1,6 @@
 <script>
   let sampleId = 0;
-  for (const sample of document.querySelectorAll<HTMLElement>('.sl-markdown-content .expressive-code')) {
+  for (const sample of document.querySelectorAll<HTMLElement>('.docs-article .expressive-code')) {
     const pre = sample.querySelector('pre');
     if (!pre) continue;
     const lines=[...pre.querySelectorAll('.ec-line')];
@@ -86,7 +86,7 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape')hide();});
   document.addEventListener('pointerdown',e=>{if(active && !active.contains(e.target as Node)&&!card.contains(e.target as Node))hide();});
   addEventListener('resize',position);addEventListener('scroll',hide,{passive:true,capture:true});
-  // Keep Starlight's generated heading anchors and our shared scrollspy. Mark actual
+  // Keep the generated heading anchors and our shared scrollspy. Mark actual
   // summary groups and member headings, including their heading wrappers.
   const members = [...document.querySelectorAll<HTMLElement>('[data-api-member]')];
   if(members.length){
@@ -94,7 +94,7 @@
     const tocLinks=[...document.querySelectorAll<HTMLAnchorElement>('docs-toc a[href^="#"], docs-mobile-toc a[href^="#"]')];
     const headingFor=(id:string)=>document.getElementById(id);
     const linksFor=(id:string)=>tocLinks.filter(link=>decodeURIComponent(link.hash.slice(1))===id);
-    const wrapperFor=(heading:HTMLElement)=>heading.closest('.sl-heading-wrapper') || heading;
+    const wrapperFor=(heading:HTMLElement)=>heading;
     const rename=(heading:HTMLElement,label:string,icon?:Element|null)=>{
       const anchor=heading.querySelector('a');
       heading.replaceChildren(...(icon?[icon.cloneNode(true)]:[]),document.createTextNode(label),...(anchor?[anchor]:[]));
@@ -114,7 +114,7 @@
       wrapperFor(heading).classList.add('api-summary-heading-wrapper');
       linksFor(heading.id).forEach(link=>link.classList.add('api-toc-summary-group'));
     }
-    for(const heading of document.querySelectorAll<HTMLElement>('.sl-markdown-content h2[id]')){
+    for(const heading of document.querySelectorAll<HTMLElement>('.docs-article h2[id]')){
       const label=heading.textContent?.replace(/Section titled.*$/,'').trim()||'';
       if(!heading.id.endsWith('-reference'))continue;
       const clean=label.replace(/ reference$/i,'');

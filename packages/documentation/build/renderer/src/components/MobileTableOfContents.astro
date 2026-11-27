@@ -2,14 +2,13 @@
 import DocumentationUtilities from './DocumentationUtilities.astro';
 import TocList from './TocList.astro';
 import TocController from './TocController.astro';
-import { Icon } from '@astrojs/starlight/components';
-const {toc}=Astro.locals.starlightRoute;
+const {toc}=Astro.props;
 ---
 {toc && <docs-mobile-toc>
-  <nav aria-label={Astro.locals.t('tableOfContents.onThisPage')}>
+  <nav aria-label="On this page">
     <details>
       <summary aria-label="On this page">
-        <span class="docs-mobile-toc-label">{Astro.locals.t('tableOfContents.onThisPage')} <Icon name="right-caret" size="14px"/></span>
+        <span class="docs-mobile-toc-label">On this page <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 3 4 4-4 4"/></svg></span>
         <span class="docs-mobile-toc-current"></span>
         <svg class="docs-compact-toc-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 6h12M9 12h12M9 18h12M3 6h2M3 12h2M3 18h2"/></svg>
       </summary>

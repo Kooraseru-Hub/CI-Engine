@@ -43,7 +43,7 @@
     --sl-color-gray-6: Canvas;
     --sl-color-gray-7: Canvas;
   }
-  .sl-markdown-content :is([data-docs-alert],.starlight-aside) { outline:1px solid CanvasText; }
+  .docs-article :is([data-docs-alert],.starlight-aside) { outline:1px solid CanvasText; }
   .sidebar-content a[aria-current='page'] { color: HighlightText; }
   .api-summary a:focus-visible { outline-color: Highlight; }
 }

@@ -1,5 +1,5 @@
 'use strict';
-// A component-owned entry point for Starlight. The CI system sees only the site output.
+// A component-owned entry point for documentation renderer. The CI system sees only the site output.
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -48,7 +48,7 @@ function stageDocs(source, destination, skipRepository = false, depth = 0) {
       if (fs.existsSync(target) || fs.existsSync(from.replace(/\.api\.yaml$/, '.mdx'))) throw Error('Conflicting API source: ' + from);
       fs.writeFileSync(target, compileReference(data, '../'.repeat(depth + 2) + 'components/'));
     }
-    else if (entry.isFile() && /\.(?:md|mdx|mdoc)$/.test(entry.name)) fs.copyFileSync(from, to);
+    else if (entry.isFile() && /\.(?:md|mdx)$/.test(entry.name)) fs.copyFileSync(from, to);
   }
 }
 
@@ -59,11 +59,11 @@ function prepareSite(options = {}) {
   const stagedCss = options.stagedTheme || stagedTheme;
   assertDirectory(source);
   if (fs.existsSync(staged)) {
-    if (fs.lstatSync(staged).isSymbolicLink()) throw new Error('Refusing linked Starlight staging directory');
+    if (fs.lstatSync(staged).isSymbolicLink()) throw new Error('Refusing linked documentation renderer staging directory');
     fs.rmSync(staged, { recursive: true });
   }
   stageDocs(source, staged, true);
-  if (!['index.md','index.mdx','index.mdoc'].some(name=>fs.existsSync(path.join(staged,name))))
+  if (!['index.md','index.mdx'].some(name=>fs.existsSync(path.join(staged,name))))
     throw new Error('Missing staged documentation homepage');
   fs.mkdirSync(path.dirname(stagedCss), { recursive: true });
   if (fs.existsSync(themeFile)) {
@@ -126,18 +126,19 @@ async function build() {
   const cli = path.join(site, 'node_modules/astro', bin);
   if (!fs.existsSync(cli)) throw new Error('Missing Astro CLI: ' + cli);
   run(process.execPath, [cli, 'build', '--root', site]);
-  // Keep dynamic prerender dependencies under the Starlight package while
+  // Keep dynamic prerender dependencies under the documentation renderer package while
   // compiling, then export plain static assets into the CI output contract.
   if (!fs.existsSync(path.join(staging, 'index.html'))) {
-    throw new Error('Starlight did not produce dist/index.html');
+    throw new Error('documentation renderer did not produce dist/index.html');
   }
+  run(process.execPath, [path.join(site,'node_modules/pagefind/lib/runner/bin.cjs'),'--site',staging], site);
   fs.cpSync(staging, output, { recursive: true, force: true });
   copyAssets(images, path.join(output, 'images'));
   if (process.env.DOCS_ASSET_MANIFEST) await require('./reference-assets.cjs').stageAssets(path.resolve(root,process.env.DOCS_ASSET_MANIFEST),path.join(output,'images'),path.join(root,'build/cache/documentation-assets'));
   if (!fs.existsSync(path.join(output, 'index.html'))) {
-    throw new Error('Starlight failed to produce static output index.html');
+    throw new Error('documentation renderer failed to produce static output index.html');
   }
-  process.stdout.write('Starlight: built ' + output + '\n');
+  process.stdout.write('documentation renderer: built ' + output + '\n');
 }
 
 module.exports = { build, prepareSite, stageFavicon, copyAssets, root, site, output, docs };

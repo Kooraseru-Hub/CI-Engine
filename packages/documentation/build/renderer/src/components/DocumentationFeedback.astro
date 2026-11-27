@@ -6,7 +6,7 @@ const configured=process.env.DOCS_FEEDBACK_URL;
 const destination=configured ? new URL(configured) : /^[\w.-]+\/[\w.-]+$/.test(repository) ? new URL('https://github.com/'+repository+'/issues/new') : undefined;
 if(destination && destination.protocol!=='https:')throw Error('DOCS_FEEDBACK_URL must use HTTPS');
 if(destination && !configured){
-  destination.searchParams.set('title','Documentation feedback: '+Astro.locals.starlightRoute.entry.data.title+(member?' / '+member:''));
+  destination.searchParams.set('title','Documentation feedback: '+(Astro.locals.docsPage?.title||'Documentation')+(member?' / '+member:''));
   destination.searchParams.set('body','Page: '+Astro.url.pathname+(member?'#'+member:'')+'\n\nFeedback:\n');
 }
 ---

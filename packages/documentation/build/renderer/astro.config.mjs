@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
-import starlight from '@astrojs/starlight';
+import mdx from '@astrojs/mdx';
+import expressiveCode from 'astro-expressive-code';
 import { unified } from '@astrojs/markdown-remark';
 import documentationTypography from './typography.mjs';
 import { dirname, resolve } from 'node:path';
@@ -9,7 +10,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(process.env.DOCS_ROOT || process.cwd());
 const repository = process.env.GITHUB_REPOSITORY || '';
 const [owner, name] = repository.split('/');
-const title = process.env.DOCS_TITLE || name || 'Project';
 const projectSite = Boolean(owner && name);
 const defaultBase = projectSite && name.toLowerCase() !== (owner + '.github.io').toLowerCase()
   ? '/' + name + '/' : '/';
@@ -29,45 +29,13 @@ export default defineConfig({
   site,
   base,
   markdown: { processor: unified({ rehypePlugins: [documentationTypography] }) },
-  integrations: [starlight({
-    title,
-    favicon: '/images/favicon.png',
-    // Navigation stays filesystem-generated. Authored Markdown is staged into
-    // src/content/docs before each build or local preview.
-    customCss: [
-      './src/styles/theme/fallback.css',
-      './src/styles/layout.css',
-      './src/styles/typography.css',
-      './src/styles/navigation.css',
-      './src/styles/reference.css',
-      './src/styles/project.css',
-      './src/styles/theme/forced-colors.css',
-    ],
-    components: {
-      PageFrame: './src/components/PageFrame.astro',
-      Sidebar: './src/components/Sidebar.astro',
-      ThemeProvider: './src/components/ThemeProvider.astro',
-      ThemeSelect: './src/components/ThemeSelect.astro',
-      EditLink: './src/components/EditLink.astro',
-      PageTitle: './src/components/PageTitle.astro',
-      TableOfContents: './src/components/TableOfContents.astro',
-      MobileTableOfContents: './src/components/MobileTableOfContents.astro',
-    },
-    expressiveCode: {
+  integrations: [
+    expressiveCode({
       themes: ['github-dark'],
-      useStarlightDarkModeSwitch: false,
-      useStarlightUiThemeColors: false,
       useDarkModeMediaQuery: false,
-      styleOverrides: {
-        borderRadius: '4px',
-        codePaddingBlock: '12px',
-        codePaddingInline: '16px',
-        codeFontSize: '14px',
-        codeLineHeight: '1.4',
-      },
-    },
-    social: repository ? [{ icon: 'github', label: 'GitHub', href: 'https://github.com/' + repository }] : [],
-    // Omit sidebar: Starlight derives it from the staged Markdown tree.
-    editLink: projectSite ? { baseUrl: process.env.DOCS_EDIT_URL || 'https://github.com/' + repository + '/edit/' + (process.env.CI_DEFAULT_BRANCH || 'source') + '/' + (process.env.DOCS_DIRECTORY || 'content/docs').replace(/\\/g, '/').replace(/\/$/, '') + '/' } : undefined,
-  })],
+      styleOverrides: {borderRadius:'4px',codePaddingBlock:'12px',codePaddingInline:'16px',codeFontSize:'14px',codeLineHeight:'1.4'},
+    }),
+    mdx(),
+  ],
+  trailingSlash:'always',
 });
