@@ -1,0 +1,7 @@
+---
+import SignatureType from './SignatureType.astro';
+import type {TypeReferences} from './ApiSignature.astro';
+interface Props {name:string;type:string;defaultValue?:string|number|boolean;description?:string;types?:TypeReferences}
+const {name,type,defaultValue,description,types}=Astro.props;
+---
+<tr class="MuiTableRow-root TableRow-root-tableRow"><td class="MuiTableCell-root TableCell-root MuiTableCell-body MuiTableCell-sizeMedium"><div class="parameterName"><span class="MuiTypography-root Typography-body2-Typography-root-parameterText MuiTypography-inherit">{name}</span><span class="spaceSuffixedColonWrapper">:</span><SignatureType type={type} types={types}/></div>{defaultValue!==undefined&&defaultValue!==null&&defaultValue!==''&&<span class="MuiTypography-root Typography-body2-Typography-root-defaultValue MuiTypography-inherit">Default Value: {String(defaultValue)}</span>}{description&&<p class="MuiTypography-root Typography-body1-Typography-root-root MuiTypography-inherit MuiTypography-paragraph">{description}</p>}<slot/></td></tr>

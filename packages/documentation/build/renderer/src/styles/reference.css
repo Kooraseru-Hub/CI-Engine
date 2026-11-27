@@ -340,3 +340,12 @@ a.api-type { cursor:pointer; }
 .api-reference-page .sl-markdown-content > p:first-of-type {padding-bottom:0;border-bottom:0;margin-bottom:12px;}
 .api-reference-page .sl-markdown-content > .api-class-status {padding-bottom:36px;border-bottom:3px solid var(--docs-border);margin-bottom:36px;}
 .sl-markdown-content .api-summary-heading-wrapper + [data-api-summary] {margin-top:0;}
+
+/* Parameters use the same table grammar as summary rows; return values use an unboxed content block. */
+.sl-markdown-content [data-api-member] .section > .container > .MuiTable-root {display:table;width:100%;margin:0;border:1px solid var(--docs-border);border-collapse:collapse;}
+.sl-markdown-content [data-api-member] .MuiTableCell-root {padding:12px 16px;border:0;border-bottom:1px solid var(--docs-border);}
+.sl-markdown-content [data-api-member] tr:last-child td {border-bottom:0;}
+[data-api-member] .parameterName,[data-api-member] .returnType {font:400 14px/1.4 'Builder Mono',monospace;overflow-wrap:anywhere;}
+[data-api-member] .Typography-body2-Typography-root-defaultValue {display:block;font-size:14px;color:var(--docs-muted);margin:8px 0 0;}
+.sl-markdown-content [data-api-member] :is(.MuiTableCell-root,.content) > p {margin:8px 0 0;}
+.sl-markdown-content [data-api-member] .MuiTableCell-root > p:first-child {margin-top:0;}

@@ -1,0 +1,7 @@
+---
+import SignatureType from './SignatureType.astro';
+import type {TypeReferences} from './ApiSignature.astro';
+interface Props {type:string;description?:string;types?:TypeReferences;name?:string}
+const {type,description,types,name}=Astro.props;
+---
+<div class="content"><div class="returnType">{name&&<>{name}: </>}<SignatureType type={type} types={types}/></div>{description&&<p class="MuiTypography-root Typography-body1-Typography-root-root MuiTypography-inherit MuiTypography-paragraph">{description}</p>}<slot/></div>

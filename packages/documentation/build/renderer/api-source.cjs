@@ -16,7 +16,7 @@ function markdown(value,sourceUrl){
 }
 function entry(member,kind,sourceUrl){
     const name=display(member.name),short=name.split(/[.:]/).at(-1);
-    const parameters=(member.parameters||[]).map(x=>({name:display(x.name),type:display(x.type),description:text(x.summary)}));
+    const parameters=(member.parameters||[]).map(x=>({name:display(x.name),type:display(x.type),description:text(x.summary),...(x.default!==null&&x.default!==undefined?{defaultValue:display(x.default)}:{})}));
     const returns=(member.returns||[]).map(x=>({name:display(x.name),type:display(x.type),description:text(x.summary)}));
     const callable=["constructor","method","function","callback","operator","event"].includes(kind);
     const returnType=returns.map(x=>x.type).join(", ");

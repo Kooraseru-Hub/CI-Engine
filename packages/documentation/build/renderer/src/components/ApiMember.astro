@@ -1,13 +1,16 @@
 ---
 import ApiIcon from './ApiIcon.astro';
-import ApiSignature from './ApiSignature.astro';
+import ApiParameterTable from './ApiParameterTable.astro';
+import ApiParameter from './ApiParameter.astro';
+import ApiReturns from './ApiReturns.astro';
+import ApiReturn from './ApiReturn.astro';
 import type { TypeReferences } from './ApiSignature.astro';
 import type { Props as IconProps } from './ApiIcon.astro';
 import ApiTags from './ApiTags.astro';
 import MemberToggleIcon from './MemberToggleIcon.astro';
 import {nameParts} from '../data/format-signature.mjs';
 import ApiPanelSignature from './ApiPanelSignature.astro';
-interface Entry { name: string; type: string; description: string }
+interface Entry { name: string; type: string; description: string; defaultValue?:string|number|boolean }
 interface Props {
   id: string;
   name: string;
@@ -37,7 +40,7 @@ const badges = metadata.flatMap(({ label, value }) => {
 const headingName=name.replace(/\(\)$/,"");
 const qualified=owner&&['method','event','callback'].includes(kind)&&!signature.slice(0,signature.indexOf('(')<0?signature.length:signature.indexOf('(')).includes(owner+'.')&&!signature.startsWith(owner+':')?owner+(kind==='method'?':':'.')+signature:signature;
 ---
-<div data-api-member={id} data-kind={kind} data-member-name={name} data-deprecated={deprecated ? "" : undefined}>
+<div data-api-member={id} data-kind={kind} data-member-name={name} data-member-metadata={JSON.stringify(metadata)} data-deprecated={deprecated ? "" : undefined}>
   <div class="titleSection">
     <div class="titleRow">
       {kind !== 'constructor' && <div class="iconWrapper"><ApiIcon kind={kind}/></div>}
@@ -50,27 +53,13 @@ const qualified=owner&&['method','event','callback'].includes(kind)&&!signature.
       {badges.length>0 && <div class="section"><ApiTags labels={badges}/></div>}
       {description && <div class="section"><p class="MuiTypography-root Typography-body1-Typography-root-root MuiTypography-inherit MuiTypography-paragraph">{description}</p></div>}
       <div class="section"><div class="MuiTypography-root Typography-body1-Typography-root-signatureContainer MuiTypography-inherit"><ApiPanelSignature signature={qualified} types={types}/></div></div>
+      {(deprecation || Astro.slots.has('deprecation')) && <div class="section">{deprecation&&<p>{deprecation}</p>}<slot name="deprecation"/></div>}
+      {parameters.length>0&&<ApiParameterTable>{parameters.map(item=><ApiParameter {...item} types={types}/>)}</ApiParameterTable>}
+      <slot name="parameters"/>
+      {returns.length>0&&<ApiReturns>{returns.map(item=><ApiReturn {...item} types={types}/>)}</ApiReturns>}
+      <slot name="returns"/>
       {Astro.slots.has('body')&&<div class="section"><slot name="body"/></div>}
       {Astro.slots.has('description')&&<div class="section"><slot name="description"/></div>}
-  {(deprecation || Astro.slots.has('deprecation') || metadata.length > 0) && (
-    <div class="section"><details class="api-disclosure">
-      <summary>{name} details</summary>
-      {deprecation && <p>{deprecation}</p>}
-      <slot name="deprecation" />
-      {metadata.length > 0 && (
-        <dl class="api-member-metadata">
-          {metadata.map(({ label, value }) => <div><dt>{label}</dt><dd>{value}</dd></div>)}
-        </dl>
-      )}
-    </details></div>
-  )}
-  {[
-    { title: 'Parameters', values: parameters },
-    { title: 'Returns', values: returns },
-  ].filter(group => group.values.length).map(group => <>
-    <div class="section"><div class="container"><span class="MuiTypography-root Typography-subtitle2-Typography-root-title MuiTypography-inherit">{group.title}</span>
-    <dl class="api-parameter-list">{group.values.map(item => <div><dt><ApiSignature signature={item.name ? item.name+' : '+item.type : item.type} types={types} memberName={Boolean(item.name)}/></dt><dd>{item.description}</dd></div>)}</dl></div></div>
-  </>)}
   {values.length > 0 && <>
     <h4>Items</h4>
     <div class="api-enum-scroll" role="region" aria-label={name + ' items'} tabindex="0">

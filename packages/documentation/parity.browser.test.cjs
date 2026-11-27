@@ -57,4 +57,7 @@ test("rendered deprecated member collapses, expands, and re-collapses with the a
     assert.equal(new URL(page.url()).hash,"#old");
     assert.equal(await page.locator('#old').count(),1);
     assert.equal(await page.locator('[data-api-member="current"] .MuiCollapse-root').count(),1);
+    assert.equal(await page.locator('[data-api-member="current"] .parameterName').innerText(),"value:number");
+    assert.equal(await page.locator('[data-api-member="current"] .Typography-body2-Typography-root-defaultValue').innerText(),"Default Value: 0");
+    assert.equal(await page.locator('[data-api-member="current"] .returnType').innerText(),"boolean");
 });
