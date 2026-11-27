@@ -51,8 +51,8 @@ jobs:
           repository: ${{ github.repository }}
           default-branch: ${{ github.event.repository.default_branch }}
   documentation:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -60,7 +60,22 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '24'
-      - run: node --test packages/documentation/*.test.cjs
+      - run: node --test packages/documentation/preview.test.cjs packages/documentation/renderer.test.cjs
+      - name: Build an independent consumer specimen
+        run: |
+          mkdir -p build/fixture/docs build/fixture/images
+          printf '%s\n' '---' 'title: Example' 'description: Independent test specimen' '---' '' '## Heading' '' 'A test document.' > build/fixture/docs/index.md
+          printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAIAAAUAAYoz4YgAAAAASUVORK5CYII=' | base64 -d > build/fixture/images/favicon.png
+      - uses: ./packages/documentation/build
+        with:
+          directory: build/fixture/docs
+          images: build/fixture/images
+          output: build/fixture/site
+      - run: test -s build/fixture/site/index.html
+      - name: Install parity browser
+        working-directory: packages/documentation/build/renderer
+        run: npx --no-install playwright install --with-deps chromium
+      - run: node --test packages/documentation/parity.browser.test.cjs
       - run: |
           mkdir -p build/site
           printf '%s\n' '<html>Example</html>' > build/site/index.html
