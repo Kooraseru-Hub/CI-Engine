@@ -1,4 +1,5 @@
 ---
+import DocumentationUtilities from './DocumentationUtilities.astro';
 import TocList from './TocList.astro';
 import TocController from './TocController.astro';
 import { Icon } from '@astrojs/starlight/components';
@@ -12,7 +13,7 @@ const {toc}=Astro.locals.starlightRoute;
         <span class="docs-mobile-toc-current"></span>
         <svg class="docs-compact-toc-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 6h12M9 12h12M9 18h12M3 6h2M3 12h2M3 18h2"/></svg>
       </summary>
-      <div class="docs-mobile-toc-dropdown"><TocList items={toc.items}/></div>
+      <div class="docs-mobile-toc-dropdown"><TocList items={toc.items}/><DocumentationUtilities/></div>
     </details>
   </nav>
   <TocController/>

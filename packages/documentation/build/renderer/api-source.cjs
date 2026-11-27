@@ -33,6 +33,10 @@ function appendSamples(lines,samples,definitions,missing){
         const code=item.code.replace(/\r\n/g,"\n");
         const fence="`".repeat(Math.max(3,...[...code.matchAll(/`+/g)].map(m=>m[0].length+1)));
         const language=/^[a-zA-Z0-9_+-]+$/.test(item.language||"")?item.language:"luau";
+        if(item.playground===true){
+            lines.push("<LuauPlayground code={"+json(code)+"} title={"+json(item.title||"Luau Playground")+"} description={"+json(item.description||"")+"} />","");
+            continue;
+        }
         if(item.title)lines.push("**"+markdown(item.title)+"**","");
         lines.push(fence+language,""+code,fence,"");
     }
@@ -42,6 +46,7 @@ function compileReference(data,componentPrefix="../../components/",options={}){
     const title=data.name,summary=markdown(data.summary,data.sourceUrl),description=markdown(data.description,data.sourceUrl),types=data.typeReferences||{};
     const definitions=data.sampleDefinitions||{},missing=new Set();
     const lines=["---","title: "+json(title),"description: "+json(text(data.summary).replace(/\s+/g," ").slice(0,500)||title),"---","", "import ApiSummary from "+json(componentPrefix+"ApiSummary.astro")+";","import ApiMember from "+json(componentPrefix+"ApiMember.astro")+";","import ApiInteractions from "+json(componentPrefix+"ApiInteractions.astro")+";","","export const types = "+json(types)+";","",summary,""];
+    lines.splice(7,0,"import LuauPlayground from "+json(componentPrefix+"LuauPlayground.astro")+";");
     if(data.tags?.length){lines.splice(7,0,"import ApiTags from "+json(componentPrefix+"ApiTags.astro")+";");lines.push('<div className="api-class-status" aria-label="Class tags"><ApiTags labels={'+json(data.tags.map(x=>String(x).replace(/([a-z])([A-Z])/g,"$1 $2")))+'} /></div>',"");}
     if(data.items?.length){
         lines.push("## Summary","","### Items","","<ApiEnumTable items={"+json(data.items.map(x=>({name:x.name,value:x.value,description:text(x.summary),deprecated:(x.tags||[]).includes("Deprecated")})))+"} />","","## Usage","",description,"");
@@ -63,6 +68,7 @@ function compileReference(data,componentPrefix="../../components/",options={}){
             for(const m of members){
                 const props={id:m.id,name:m.name,kind:m.kind,signature:m.signature,deprecated:m.deprecated,deprecation:m.deprecation,metadata:m.metadata,parameters:m.parameters,returns:m.returns};
                 lines.push("### "+m.id,"","<ApiMember "+Object.entries(props).map(([k,value])=>k+"={"+json(value)+"}").join(" ")+" types={types}>","");
+                if(m.summary&&m.description!==m.summary)lines.push('<div slot="summary">',"",markdown(m.summary,data.sourceUrl),"","</div>","");
                 if(m.description)lines.push('<div slot="body">',"",m.description,"","</div>","");
                 const sampleLines=[];appendSamples(sampleLines,m.samples,definitions,missing);
                 if(sampleLines.length)lines.push('<div slot="samples" className="docs-code-sample">' ,"",...sampleLines,"</div>","");

@@ -1,4 +1,5 @@
 ---
+import DocumentationFeedback from './DocumentationFeedback.astro';
 import ApiIcon from './ApiIcon.astro';
 import ApiParameterTable from './ApiParameterTable.astro';
 import ApiParameter from './ApiParameter.astro';
@@ -52,6 +53,7 @@ const qualified=owner&&['method','event','callback'].includes(kind)&&!signature.
     <div class="MuiCollapse-wrapper MuiCollapse-vertical"><div class="MuiCollapse-wrapperInner MuiCollapse-vertical">
       {badges.length>0 && <div class="section"><ApiTags labels={badges}/></div>}
       {description && <div class="section"><p class="MuiTypography-root Typography-body1-Typography-root-root MuiTypography-inherit MuiTypography-paragraph">{description}</p></div>}
+      {Astro.slots.has('summary')&&<div class="section"><slot name="summary"/></div>}
       <div class="section"><div class="MuiTypography-root Typography-body1-Typography-root-signatureContainer MuiTypography-inherit"><ApiPanelSignature signature={qualified} types={types}/></div></div>
       {(deprecation || Astro.slots.has('deprecation')) && <div class="section">{deprecation&&<p>{deprecation}</p>}<slot name="deprecation"/></div>}
       {parameters.length>0&&<ApiParameterTable>{parameters.map(item=><ApiParameter {...item} types={types}/>)}</ApiParameterTable>}
@@ -72,6 +74,7 @@ const qualified=owner&&['method','event','callback'].includes(kind)&&!signature.
   {Astro.slots.has('samples') && <>
     <div class="section"><div class="codeSamplesTitleContainer"><span class="MuiTypography-root Typography-subtitle2-Typography-root-codeSamplesTitle MuiTypography-inherit">Code Samples</span></div><div class="singleCodeSampleContainer"><slot name="samples" /></div></div>
   </>}
+    <DocumentationFeedback member={id} label="Provide feedback"/>
     </div></div>
   </div>
   <div class="dividerSpacing"><hr class="MuiDivider-root Divider-root-divider MuiDivider-fullWidth"/></div>

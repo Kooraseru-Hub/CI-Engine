@@ -85,3 +85,13 @@ test("structured datatype constants are deduplicated, math operations retained, 
  assert.deepEqual(missing,["missing"]);
  assert.doesNotMatch(result,/print\('missing'\)/);
 });
+
+
+test("playground samples are explicit, retain source, and do not replace static code",()=>{
+ const {compileReference}=require("./build/renderer/api-source.cjs");
+ const result=compileReference({name:"Example",type:"library",summary:"Example",properties:[{name:"Example.one",type:"number",summary:"Short summary.",description:"Detailed description.",code_samples:["one","static"]}],sampleDefinitions:{one:{playground:true,title:"One",description:"Interactive",code:"print(1)"},static:{code:"print(2)",language:"luau"}}});
+ assert.match(result,/<LuauPlayground code=\{"print\(1\)"\}/);
+ assert.match(result,/slot="summary"/);
+ assert.match(result,/Short summary\./);
+ assert.match(result,/print\(2\)/);
+});

@@ -1,0 +1,12 @@
+---
+import DocumentationFeedback from './DocumentationFeedback.astro';
+const language=Astro.currentLocale||'en';
+const languageName=new Intl.DisplayNames([language],{type:'language'}).of(language)||language;
+---
+<div class="docs-outline-utilities">
+  <details>
+    <summary aria-label="Documentation language"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h12M9 3v2M5 8c2 4 4 6 8 8M13 5C12 11 8 15 3 17M13 21l4-10 4 10m-6-4h4"/></svg>{languageName}</summary>
+    <div class="docs-language-options"><span aria-current="true">{languageName}</span></div>
+  </details>
+  <DocumentationFeedback/>
+</div>

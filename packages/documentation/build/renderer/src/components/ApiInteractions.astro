@@ -136,7 +136,7 @@
       }
       for(const link of linksFor(id)){
         link.classList.add('api-toc-member');
-        labelLink(link,label,icon);
+        labelLink(link,member.dataset.kind==='function'&&!label.endsWith('()')?label+'()':label,icon);
       }
     }
     const title=document.getElementById('_top')?.textContent?.trim();

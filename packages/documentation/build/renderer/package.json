@@ -16,6 +16,7 @@
     "astro": "7.4.12",
     "@astrojs/starlight": "0.43.1",
     "playwright": "1.65.1",
-    "yaml": "2.8.1"
+    "yaml": "2.8.1",
+    "lz-string": "1.5.0"
   }
 }

@@ -369,3 +369,9 @@ a.api-type { cursor:pointer; }
 [data-inherited-group] .MuiCollapse-root[hidden] {display:none!important;}
 [data-inherited-group] .MuiAccordionDetails-root {margin:12px 0 0;padding-inline-start:24px;}
 .sl-markdown-content [data-inherited-group] [data-api-summary] {margin:0;}
+
+.sl-markdown-content .docs-feedback { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; margin:0; color:var(--docs-heading); font-size:14px; font-weight:600; text-decoration:none; border-radius:4px; }
+.sl-markdown-content .docs-feedback:hover { background:var(--docs-hover); }
+.sl-markdown-content .docs-luau-playground { display:block; width:100%; border:1px solid var(--docs-border); border-radius:4px; background:var(--docs-surface-secondary); }
+.sl-markdown-content .docs-playground-sample > p { margin:0 0 16px; }
+.sl-markdown-content .docs-playground-sample > h4 { margin:0; }
