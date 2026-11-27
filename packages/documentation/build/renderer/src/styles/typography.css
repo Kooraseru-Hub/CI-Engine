@@ -86,3 +86,10 @@ html { scroll-behavior:auto; scroll-padding-top:var(--docs-anchor-offset); }
 .sl-markdown-content :is(.docs-alert,.starlight-aside) :not(pre) > code { background:transparent; border:0; padding:0; }
 .sl-markdown-content .docs-alert .innerContainer > :first-child { margin-block-start:0; }
 .sl-markdown-content .docs-alert .innerContainer > :last-child { margin-block-end:0; }
+
+/* Captured prose and inline code; leave fenced code and API signatures untouched. */
+.sl-markdown-content .inline-code { font-family:var(--sl-font-mono); font-size:var(--sl-text-code); border-radius:4px; padding:0 4px; border:1px solid var(--docs-border); background:var(--docs-surface-secondary); overflow-wrap:anywhere; }
+.sl-markdown-content .inline-code > a { font:inherit; color:inherit; text-decoration:none; }
+.sl-markdown-content .inline-code > a:hover { text-decoration:underline; }
+.sl-markdown-content :is(.docs-alert,.starlight-aside) .inline-code { background:transparent; border:0; padding:0; }
+.sl-markdown-content :is(.docs-alert,.starlight-aside) .inline-code > a { text-decoration:underline; }

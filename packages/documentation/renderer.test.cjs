@@ -95,3 +95,23 @@ test("playground samples are explicit, retain source, and do not replace static 
  assert.match(result,/Short summary\./);
  assert.match(result,/print\(2\)/);
 });
+
+
+test("documentation typography preserves links and code semantics without touching fenced code",async()=>{
+ const {default:typography}=await import("./build/renderer/typography.mjs");
+ const text=value=>({type:"text",value});
+ const el=(tagName,children,properties={})=>({type:"element",tagName,children,properties});
+ const tree={type:"root",children:[el("p",[el("code",[text("literal")]),el("a",[el("code",[text("linked")])],{href:"/target"}),el("a",[text("ordinary")],{href:"#heading"})]),el("pre",[el("code",[text("print(1)")])])]};
+ typography()(tree);
+ const [paragraph,block]=tree.children;
+ assert(paragraph.properties.className.includes("Typography-body1-Typography-root-root"));
+ const [literal,linked,ordinary]=paragraph.children;
+ assert.equal(literal.tagName,"span");assert.equal(literal.properties.role,"code");
+ assert(literal.properties.className.includes("inline-code"));
+ assert.equal(linked.tagName,"span");assert.equal(linked.children[0].tagName,"a");
+ assert.equal(linked.children[0].properties.href,"/target");
+ assert(linked.children[0].properties.className.includes("MuiLink-underlineNone"));
+ assert(ordinary.properties.className.includes("MuiLink-underlineHover"));
+ assert.equal(block.children[0].tagName,"code");
+ assert.deepEqual(block.children[0].properties,{});
+});

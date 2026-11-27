@@ -150,3 +150,19 @@ test("rendered documentation utilities and runnable embed retain their actual ta
     assert.equal(state.files["main.luau"],"print(1)");
     assert.equal(await frame.getAttribute("loading"),"lazy");
 });
+
+
+test("compiled article renders captured inline typography without altering code blocks",async t=>{
+ const product=path.resolve("build/fixture/site");
+ if(!fs.existsSync(path.join(product,"member/index.html")))return t.skip("standalone fixture not built");
+ const [owner,name]=(process.env.GITHUB_REPOSITORY||"").split("/");
+ const base=process.env.DOCS_BASE||(owner&&name&&name.toLowerCase()!==owner.toLowerCase()+".github.io"?"/"+name+"/":"/");
+ const server=await serve(product,base);t.after(()=>server.close());
+ const browser=await chromium.launch();t.after(()=>browser.close());
+ const page=await browser.newPage();
+ await page.goto(server.url+base+"member/",{waitUntil:"domcontentloaded"});
+ const paragraph=page.locator("p.Typography-body1-Typography-root-root").filter({hasText:"A literal and a linked value."});
+ assert.equal(await paragraph.count(),1);
+ assert.equal(await paragraph.locator("span.inline-code[role=code]").innerText(),"literal");
+ assert.equal(await paragraph.locator("span.inline-code > a").getAttribute("href"),"#current");
+});

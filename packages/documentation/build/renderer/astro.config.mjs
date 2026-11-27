@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import documentationTypography from './typography.mjs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,6 +27,7 @@ export default defineConfig({
   cacheDir: resolve(repositoryRoot, process.env.DOCS_CACHE || 'build/cache/astro'),
   site,
   base,
+  markdown: { rehypePlugins: [documentationTypography] },
   integrations: [starlight({
     title,
     favicon: '/images/favicon.png',
