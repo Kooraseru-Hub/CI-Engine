@@ -7,9 +7,10 @@ const {toc}=Astro.locals.starlightRoute;
 {toc && <docs-mobile-toc>
   <nav aria-label={Astro.locals.t('tableOfContents.onThisPage')}>
     <details>
-      <summary>
+      <summary aria-label="On this page">
         <span class="docs-mobile-toc-label">{Astro.locals.t('tableOfContents.onThisPage')} <Icon name="right-caret" size="14px"/></span>
         <span class="docs-mobile-toc-current"></span>
+        <svg class="docs-compact-toc-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 6h12M9 12h12M9 18h12M3 6h2M3 12h2M3 18h2"/></svg>
       </summary>
       <div class="docs-mobile-toc-dropdown"><TocList items={toc.items}/></div>
     </details>

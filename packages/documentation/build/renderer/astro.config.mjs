@@ -41,6 +41,8 @@ export default defineConfig({
       './src/styles/theme/forced-colors.css',
     ],
     components: {
+      PageFrame: './src/components/PageFrame.astro',
+      Sidebar: './src/components/Sidebar.astro',
       ThemeProvider: './src/components/ThemeProvider.astro',
       ThemeSelect: './src/components/ThemeSelect.astro',
       EditLink: './src/components/EditLink.astro',

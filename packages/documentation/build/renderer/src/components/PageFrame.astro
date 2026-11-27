@@ -1,0 +1,25 @@
+---
+import Default from '@astrojs/starlight/components/PageFrame.astro';
+const {hasSidebar}=Astro.locals.starlightRoute;
+const repository=process.env.GITHUB_REPOSITORY||'';
+const title=process.env.DOCS_TITLE||repository.split('/').at(-1)||'Documentation';
+const home=import.meta.env.BASE_URL;
+---
+{hasSidebar&&<aside class="docs-project-rail print:hidden" aria-label="Project navigation">
+  <a class="docs-project-brand" href={home}><img src={home+'images/favicon.png'} width="24" height="24" alt=""/><span>{title}</span></a>
+  <nav aria-label="Project sections">
+    <a href={home} class="docs-project-link" aria-current="page"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zm0 0v14"/></svg><span>Documentation</span></a>
+    {repository&&<a href={'https://github.com/'+repository} class="docs-project-link"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"/></svg><span>Source repository</span></a>}
+  </nav>
+  <button type="button" class="docs-project-toggle" aria-label="Hide project sidebar" aria-expanded="true"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 5v14"/></svg><span>Hide sidebar</span></button>
+</aside>}
+<Default><Fragment slot="header"><slot name="header"/></Fragment><Fragment slot="sidebar"><slot name="sidebar"/></Fragment><slot/></Default>
+<script>
+  const button=document.querySelector<HTMLButtonElement>('.docs-project-toggle');
+  if(button)button.addEventListener('click',()=>{
+    const hidden=document.documentElement.toggleAttribute('data-project-rail-collapsed');
+    button.setAttribute('aria-expanded',String(!hidden));
+    button.setAttribute('aria-label',hidden?'Show project sidebar':'Hide project sidebar');
+    const label=button.querySelector('span');if(label)label.textContent=hidden?'Show sidebar':'Hide sidebar';
+  });
+</script>

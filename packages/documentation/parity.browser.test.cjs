@@ -41,6 +41,13 @@ test("rendered deprecated member collapses, expands, and re-collapses with the a
     await page.goto(server.url+base+"member/",{waitUntil:"load"});
     const old=page.locator('[data-api-member="old"]'),control=old.locator('button.toggleIcon'),heading=old.locator('[data-member-heading]');
     await control.waitFor({state:"visible"});
+    const rail=page.locator(".docs-project-rail");await rail.waitFor({state:"visible"});
+    const x=await page.locator("main .Typography-h1-Typography-root-title").evaluate(el=>el.getBoundingClientRect().x);
+    assert(Math.abs(x-537)<=1,"Wide reference article begins after both rails: "+x);
+    await page.locator(".docs-project-toggle").click();
+    assert.equal(await page.locator(".docs-project-toggle").getAttribute("aria-expanded"),"false");
+    await page.locator(".docs-project-toggle").click();
+    assert.equal(await page.locator(".docs-project-toggle").getAttribute("aria-expanded"),"true");
     assert.equal(await heading.getAttribute("id"),"old");
     assert.equal(await page.locator("#old").count(),1);
     assert.equal(await old.locator(':scope > .MuiCollapse-root').count(),0);
