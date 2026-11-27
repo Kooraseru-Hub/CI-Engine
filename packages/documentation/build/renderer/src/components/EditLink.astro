@@ -1,9 +1,0 @@
----
-const repository=process.env.GITHUB_REPOSITORY||'';
-const page=Astro.locals.docsPage;
-const branch=process.env.CI_DEFAULT_BRANCH||'source';
-const base=process.env.DOCS_EDIT_URL||(/^\w[\w.-]*\/[\w.-]+$/.test(repository)?'https://github.com/'+repository+'/edit/'+encodeURIComponent(branch)+'/'+(process.env.DOCS_DIRECTORY||'content/docs').replace(/\\/g,'/').replace(/\/$/,'')+'/':undefined);
-const relative=page?.filePath?.split('/src/content/docs/').at(-1)?.replace(/^src\/content\/docs\//,'');
-const href=base&&relative&&!relative.startsWith('/')?new URL(relative,base).href:undefined;
----
-{href&&<a class="docs-edit-link" href={href}>Edit page</a>}

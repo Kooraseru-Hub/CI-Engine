@@ -1,7 +1,0 @@
----
-import {routeFor} from '../data/navigation.mjs';
-const {entries,current}=Astro.props;
-const visible=entries.filter(entry=>!entry.data.sidebar?.hidden).sort((a,b)=>(a.data.sidebar?.order??0)-(b.data.sidebar?.order??0)||a.data.title.localeCompare(b.data.title));
----
-<div class="sidebar-content"><div class="docs-reference-rail-header"><span>Documentation</span></div>
-<nav aria-label="Documentation pages"><ul>{visible.map(entry=><li><a href={import.meta.env.BASE_URL+(routeFor(entry.id)?routeFor(entry.id)+'/':'')} aria-current={entry.id===current?'page':undefined}>{entry.data.sidebar?.label||entry.data.title}</a></li>)}</ul></nav></div>

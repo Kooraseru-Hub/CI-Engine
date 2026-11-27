@@ -1,7 +1,0 @@
----
-import SignatureTypeValue from './SignatureTypeValue.astro';
-import type {TypeReferences} from './ApiSignature.astro';
-interface Props {type:string;types?:TypeReferences;returns?:boolean}
-const {type,types,returns=false}=Astro.props;
----
-{returns?<span class="MuiTypography-root Typography-body1-Typography-root MuiTypography-inherit"><SignatureTypeValue type={type} types={types}/></span>:<SignatureTypeValue type={type} types={types}/>}

@@ -19,6 +19,9 @@ inputs:
   site:
     description: Optional public origin
     default: ''
+  renderer-ref:
+    description: Immutable Documentation repository commit SHA
+    default: '10098c0d80396a92945d3ad88b52391c683500d8'
 runs:
   using: composite
   steps:
@@ -30,4 +33,14 @@ runs:
         DOCS_OUTPUT: ${{ inputs.output }}
         DOCS_BASE: ${{ inputs.base }}
         DOCS_SITE: ${{ inputs.site }}
-      run: node "$GITHUB_ACTION_PATH/renderer/build.cjs"
+        RENDERER_REF: ${{ inputs.renderer-ref }}
+      run: |
+        set -euo pipefail
+        [[ "$RENDERER_REF" =~ ^[a-f0-9]{40}$ ]]
+        renderer="$(mktemp -d "$RUNNER_TEMP/documentation.XXXXXXXX")"
+        trap 'rm -rf "$renderer"' EXIT
+        git -C "$renderer" init --quiet
+        git -C "$renderer" fetch --quiet --no-tags --depth=1 https://github.com/Kooraseru-Hub/Documentation.git "$RENDERER_REF"
+        git -C "$renderer" checkout --quiet --detach FETCH_HEAD
+        test "$(git -C "$renderer" rev-parse HEAD)" = "$RENDERER_REF"
+        node "$renderer/package/build/renderer/build.cjs"
