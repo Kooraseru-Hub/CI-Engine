@@ -15,6 +15,10 @@
   --docs-border: rgba(208, 217, 251, 0.12);
   --docs-hover: rgba(208, 217, 251, 0.08);
   --docs-selected: rgba(208, 217, 251, 0.16);
+  --docs-alert-info: #1e2540;
+  --docs-alert-success: #19342e;
+  --docs-alert-warning: #3b2e1c;
+  --docs-alert-error: #3d2329;
   --docs-tooltip-bg: #d5d7dd;
   --docs-tooltip-text: #202227;
   --sl-color-white: var(--docs-heading);

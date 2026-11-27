@@ -61,3 +61,28 @@ html { scroll-behavior:auto; scroll-padding-top:var(--docs-anchor-offset); }
   font-size: 14px;
 }
 .sl-markdown-content figure > video { margin-inline: auto; }
+
+/* Inline alerts: shared visual treatment for MDX components and Markdown directives. */
+.sl-markdown-content :is(.docs-alert,.starlight-aside) {
+  box-sizing:border-box; display:flex; align-items:flex-start; gap:12px;
+  padding:16px; border:0; border-radius:8px;
+  background:var(--docs-alert-background); color:var(--docs-heading);
+  font-size:16px; line-height:1.4;
+  --docs-alert-background:var(--docs-alert-info);
+}
+.sl-markdown-content :is(.docs-alert[data-kind="tip"],.starlight-aside--tip) { --docs-alert-background:var(--docs-alert-success); }
+.sl-markdown-content :is(.docs-alert[data-kind="caution"],.starlight-aside--caution) { --docs-alert-background:var(--docs-alert-warning); }
+.sl-markdown-content :is(.docs-alert[data-kind="danger"],.starlight-aside--danger) { --docs-alert-background:var(--docs-alert-error); }
+.sl-markdown-content :is(.docs-alert .MuiAlert-icon,.starlight-aside__title) {
+  flex:0 0 24px; display:flex; align-items:center; justify-content:center;
+  margin:0; padding:0; width:24px; height:24px; color:inherit;
+}
+.sl-markdown-content .starlight-aside__title { font-size:0; gap:0; }
+.sl-markdown-content .starlight-aside__icon { width:24px; height:24px; }
+.sl-markdown-content :is(.docs-alert .MuiAlert-message,.starlight-aside__content) {
+  flex:1; min-width:0; margin:0; padding:0; overflow-wrap:anywhere;
+}
+.sl-markdown-content :is(.docs-alert,.starlight-aside) a { color:inherit; text-decoration:underline; }
+.sl-markdown-content :is(.docs-alert,.starlight-aside) :not(pre) > code { background:transparent; border:0; padding:0; }
+.sl-markdown-content .docs-alert .innerContainer > :first-child { margin-block-start:0; }
+.sl-markdown-content .docs-alert .innerContainer > :last-child { margin-block-end:0; }

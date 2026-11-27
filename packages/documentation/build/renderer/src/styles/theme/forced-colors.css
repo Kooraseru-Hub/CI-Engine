@@ -13,6 +13,10 @@
     --docs-border: ButtonBorder;
     --docs-hover: Canvas;
     --docs-selected: Highlight;
+    --docs-alert-info: Canvas;
+    --docs-alert-success: Canvas;
+    --docs-alert-warning: Canvas;
+    --docs-alert-error: Canvas;
     --docs-tooltip-bg: Canvas;
     --docs-tooltip-text: CanvasText;
     --sl-color-white: CanvasText;
@@ -39,6 +43,7 @@
     --sl-color-gray-6: Canvas;
     --sl-color-gray-7: Canvas;
   }
+  .sl-markdown-content :is(.docs-alert,.starlight-aside) { outline:1px solid CanvasText; }
   .sidebar-content a[aria-current='page'] { color: HighlightText; }
   .api-summary a:focus-visible { outline-color: Highlight; }
 }

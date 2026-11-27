@@ -6,7 +6,9 @@
 .sidebar-content a:hover { background:var(--docs-hover); color:var(--docs-heading); }
 .sidebar-content a[aria-current='page'] { background:var(--docs-selected); color:var(--docs-heading); font-weight:600; }
 .sidebar-content ul ul { margin-inline-start:12px; padding-inline-start:0; border-inline-start:0; }
-.right-sidebar-panel { padding:0 32px 24px 16px; }
+.right-sidebar-panel { box-sizing:border-box; min-inline-size:0; max-inline-size:100%; padding:0 32px 24px 16px; }
+docs-toc, docs-toc nav, docs-toc ul, docs-toc li { display:block; min-inline-size:0; max-inline-size:100%; }
+docs-toc a { box-sizing:border-box; min-inline-size:0; max-inline-size:100%; }
 .right-sidebar-panel h2 { font-size:14px; font-weight:700; padding-inline:12px; margin:0 0 8px; }
 docs-toc ul { padding:0; margin:0; list-style:none; }
 docs-toc li { margin:0; padding:0; }
@@ -36,9 +38,11 @@ docs-mobile-toc summary::-webkit-details-marker { display:none; }
 .docs-mobile-toc-label { display:flex; align-items:center; gap:8px; flex:none; color:var(--docs-heading); }
 .docs-mobile-toc-current { color:var(--docs-muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 docs-mobile-toc details[open] .docs-mobile-toc-label svg { transform:rotate(90deg); }
-.docs-mobile-toc-dropdown { background:var(--docs-surface); border-bottom:1px solid var(--docs-border); max-height:calc(85dvh - var(--sl-nav-height) - var(--sl-mobile-toc-height)); overflow-y:auto; overscroll-behavior:contain; padding:8px 16px; box-shadow:0 8px 16px #0004; }
+.docs-mobile-toc-dropdown { background:var(--docs-surface); border-bottom:1px solid var(--docs-border); max-height:calc(85dvh - var(--sl-nav-height) - var(--sl-mobile-toc-height)); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:8px 16px; box-shadow:0 8px 16px #0004; }
 docs-mobile-toc ul { list-style:none; margin:0; padding:0; }
 docs-mobile-toc li { margin:0; padding:0; }
 docs-mobile-toc a { display:flex; align-items:center; gap:8px; padding:8px 12px; font-size:14px; line-height:21px; color:var(--docs-text); text-decoration:none; border-radius:4px; }
+docs-mobile-toc a > span { min-inline-size:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+docs-mobile-toc .api-icon { flex-shrink:0; }
 docs-mobile-toc a[aria-current='true'],docs-mobile-toc a:hover { background:var(--docs-hover); color:var(--docs-heading); }
 docs-mobile-toc .api-toc-member:not(:has(.api-icon)) { padding-inline-start:41px; }

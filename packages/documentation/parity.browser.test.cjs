@@ -88,3 +88,32 @@ test("rendered deprecated member collapses, expands, and re-collapses with the a
     assert.equal(await page.locator('[data-api-member="current"] .Typography-body2-Typography-root-defaultValue').innerText(),"Default Value: 0");
     assert.equal(await page.locator('[data-api-member="current"] .returnType').innerText(),"boolean");
 });
+
+
+test("rendered callouts and desktop outline have bounded layout",async t=>{
+    const product=path.resolve("build/fixture/site");
+    if(!fs.existsSync(path.join(product,"member/index.html")))return t.skip("standalone fixture not built");
+    const [owner,name]=(process.env.GITHUB_REPOSITORY||"").split("/");
+    const base=process.env.DOCS_BASE||(owner&&name&&name.toLowerCase()!==owner.toLowerCase()+".github.io"?"/"+name+"/":"/");
+    const server=await serve(product,base);t.after(()=>server.close());
+    const browser=await chromium.launch();t.after(()=>browser.close());
+    const page=await browser.newPage({viewport:{width:1920,height:900}});
+    await page.goto(server.url+base+"member/",{waitUntil:"load"});
+    const note=page.locator(".docs-alert[data-kind=note]");
+    await note.waitFor({state:"visible"});
+    assert.equal(await note.locator(".MuiAlert-icon svg").count(),1);
+    assert.equal(await note.locator(".MuiAlert-message").innerText(),"Inline note with a link.");
+    assert.deepEqual(await note.evaluate(el=>{const s=getComputedStyle(el);return [s.display,s.borderRadius,s.borderLeftWidth,s.backgroundColor]}),["flex","8px","0px","rgb(30, 37, 64)"]);
+    assert.equal(await page.locator(".docs-alert[data-kind=tip] .MuiAlert-message").innerText(),"Inline success tip.");
+    const outline=page.locator(".right-sidebar");
+    await outline.waitFor({state:"visible"});
+    await page.locator("docs-toc a > span").first().evaluate(el=>el.textContent="UnbrokenHeading".repeat(30));
+    assert(await outline.evaluate(el=>el.scrollWidth<=el.clientWidth+1),"desktop outline has horizontal overflow");
+    assert.equal(await outline.evaluate(el=>getComputedStyle(el).overflowX),"hidden");
+    assert.equal(await outline.evaluate(el=>getComputedStyle(el).overflowY),"auto");
+    await page.setViewportSize({width:1440,height:900});
+    await page.locator("docs-mobile-toc summary").click();
+    const dropdown=page.locator(".docs-mobile-toc-dropdown");
+    await dropdown.waitFor({state:"visible"});
+    assert(await dropdown.evaluate(el=>el.scrollWidth<=el.clientWidth+1),"compact outline has horizontal overflow");
+});
