@@ -43,4 +43,6 @@ runs:
         git -C "$renderer" fetch --quiet --no-tags --depth=1 https://github.com/Kooraseru-Hub/Documentation.git "$RENDERER_REF"
         git -C "$renderer" checkout --quiet --detach FETCH_HEAD
         test "$(git -C "$renderer" rev-parse HEAD)" = "$RENDERER_REF"
-        node "$renderer/package/build/renderer/build.cjs"
+        export DOCS_ROOT="${DOCS_ROOT:-$GITHUB_WORKSPACE}"
+        cd "$renderer/package/build/renderer"
+        node build.cjs
