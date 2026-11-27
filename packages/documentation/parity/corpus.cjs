@@ -61,18 +61,37 @@ function coverage(documents,experiments){
 // Compare a candidate's observed component shapes to the union of registered reference shapes.
 // Absence is untested, not failure, unless the caller specifies required identities.
 // Occurrence counts in unrelated documents must not be treated as candidate expectations.
-function compareCatalogue(references,candidates){
+function compareCatalogue(references,candidates,policy={}){
     const expected=catalogue(references),actual=catalogue(candidates);
-    const key=x=>JSON.stringify([x.tag,x.classes]);
+    const key=x=>JSON.stringify([x.tag,[...new Set(x.classes)].sort()]);
+    const referenceMap=new Map(expected.map(x=>[key(x),x]));
     const actualMap=new Map(actual.map(x=>[key(x),x]));
+    const required=new Set(),excluded=new Map();
+    for(const component of policy.required||[]){
+        const id=key(component);
+        assert(referenceMap.has(id)&&!required.has(id),"Invalid or duplicate required component: "+id);
+        required.add(id);
+    }
+    for(const component of policy.excluded||[]){
+        const id=key(component);
+        assert((referenceMap.has(id)||actualMap.has(id))&&!required.has(id)&&!excluded.has(id)&&typeof component.reason==="string"&&component.reason.trim(),"Invalid excluded component: "+id);
+        excluded.set(id,component.reason);
+    }
     const result=expected.map(entry=>{
-        const other=actualMap.get(key(entry));actualMap.delete(key(entry));
-        const shapes=new Set(entry.shapes.map(x=>x.hash));
+        const id=key(entry),other=actualMap.get(id);actualMap.delete(id);
+        const shapes=new Set(entry.shapes.map(x=>x.hash)),observed=new Set((other?.shapes||[]).map(x=>x.hash));
         const matching=other?.shapes.filter(x=>shapes.has(x.hash))||[];
         const different=other?.shapes.filter(x=>!shapes.has(x.hash))||[];
-        return {tag:entry.tag,classes:entry.classes,sources:Object.keys(entry.documents),candidateDocuments:Object.keys(other?.documents||{}),status:!other?"untested":different.length?"different":"matching",matchingShapes:matching,differentShapes:different,referenceVariants:entry.shapes.length};
+        const untested=entry.shapes.filter(x=>!observed.has(x.hash));
+        return {tag:entry.tag,classes:entry.classes,sources:Object.keys(entry.documents),candidateDocuments:Object.keys(other?.documents||{}),
+            status:excluded.has(id)?"excluded":!other?(required.has(id)?"missing":"untested"):different.length?"different":"matching",
+            required:required.has(id),...(excluded.has(id)?{reason:excluded.get(id)}:{}),
+            matchingShapes:matching,differentShapes:different,untestedShapes:untested,referenceVariants:entry.shapes.length};
     });
-    for(const entry of actualMap.values())result.push({tag:entry.tag,classes:entry.classes,sources:[],candidateDocuments:Object.keys(entry.documents),status:"unexpected",matchingShapes:[],differentShapes:entry.shapes,referenceVariants:0});
+    for(const entry of actualMap.values()){
+        const id=key(entry);
+        result.push({tag:entry.tag,classes:entry.classes,sources:[],candidateDocuments:Object.keys(entry.documents),status:excluded.has(id)?"excluded":"unexpected",required:false,...(excluded.has(id)?{reason:excluded.get(id)}:{}),matchingShapes:[],differentShapes:entry.shapes,untestedShapes:[],referenceVariants:0});
+    }
     return result;
 }
 module.exports={loadCorpus,catalogue,coverage,compareCatalogue};

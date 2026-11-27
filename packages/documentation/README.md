@@ -17,3 +17,5 @@ Run from the consumer root with Node.js 24: `node /path/to/CI-Packages/packages/
 ## Parity
 
 The `parity/` modules export capture, comparison, structural snapshots and a cross-source component catalogue. Callers supply the source registry, experiment directory and rule policy via `Create(settings).Check({root, product, output, mode, rule})`. Class normalization is data-driven using `settings.classNormalization` (drop regexes and pattern/replacement pairs). The package does not select external reference URLs or impose a consumer-specific parity rule. Ordinary documentation builds do not run parity.
+
+Component audit routes are declared by the consumer in `settings.candidates` (id, root-relative route, root selector, viewport). The audit captures those local routes independently of full-document experiments. `settings.componentPolicy` optionally declares required named identities and exclusions with explicit reasons. Missing required identities are findings; unseen optional identities and reference variants remain untested. A matching observed variant is not a claim that every variant has been exercised.

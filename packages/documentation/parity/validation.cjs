@@ -90,6 +90,15 @@ function Create(settings) {
         const findings=[],coverage=[];
         const documents=loadCorpus(root,settings.sources), registered=corpusCoverage(documents,experiments), components=catalogue(documents);
         const candidates=[];
+        const declaredCandidates=settings.candidates;
+        assert(Array.isArray(declaredCandidates)&&declaredCandidates.length,"Configure at least one component candidate");
+        const candidateIds=new Set();
+        for(const item of declaredCandidates){
+            assert(/^[a-z][a-z0-9-]*$/.test(item.id)&&!candidateIds.has(item.id),"Invalid or duplicate component candidate ID");candidateIds.add(item.id);
+            assert(typeof item.route==="string"&&/^\\/(?!\\/)/.test(item.route)&&!/[\\\\?#]/.test(item.route)&&!item.route.split("/").some(part=>part===".."||part==="."),"Invalid component candidate route");
+            assert(typeof item.root==="string"&&item.root.trim(),"Missing component candidate root");
+            assert(["width","height"].every(k=>Number.isInteger(item.viewport?.[k])&&item.viewport[k]>0),"Invalid component candidate viewport");
+        }
         fs.mkdirSync(output,{recursive:true});
         fs.writeFileSync(path.join(output,"corpus-report.json"),JSON.stringify({documents:registered,components},null,2)+"\n");
         console.log("Reference corpus: "+documents.length+" documents; "+documents.reduce((n,d)=>n+d.metadata.elements,0)+" article elements; "+components.length+" named component identities");
@@ -100,7 +109,23 @@ function Create(settings) {
             const repository=process.env.GITHUB_REPOSITORY || "";
             const [owner,name]=repository.split("/");
             const base=process.env.DOCS_BASE || (owner && name && name.toLowerCase()!==owner.toLowerCase()+".github.io" ? "/"+name+"/" : "/");
-            if(mode!=="capture") server=await serve(product,base);
+            if(mode!=="capture"){
+                server=await serve(product,base);
+                for(const item of declaredCandidates){
+                    const destination=path.join(output,"components",item.id),id="components/"+item.id;
+                    try {
+                        const url=new URL(base+item.route.slice(1),server.url);
+                        assert.equal(url.origin,server.url,"Component candidate must be local");
+                        assert(url.pathname.startsWith(base),"Component candidate escaped site base");
+                        await capture(browser,url.href,{id:item.id,viewport:item.viewport,elements:[],structure:{candidate:item.root,normalization:settings.classNormalization}},"candidate",destination,server.url);
+                        candidates.push({id:item.id,tree:JSON.parse(fs.readFileSync(path.join(destination,"structure.json"),"utf8"))});
+                        coverage.push({id,status:"captured"});
+                    } catch(error){
+                        findings.push({file:rule.readme,line:1,column:1,message:id+": "+String(error.message||error),infrastructure:true});
+                        coverage.push({id,status:"failed"});
+                    }
+                }
+            }
             for(const experiment of experiments) for(const scenario of experiment.spec.scenarios) {
                 const id=experiment.id+"/"+scenario.id;
                 const captureScenario=experiment.spec.structure?.scenario===scenario.id?{...scenario,structure:{...experiment.spec.structure,normalization:settings.classNormalization}}:scenario;
@@ -128,7 +153,6 @@ function Create(settings) {
                         assert(source,"Direct comparison must have a configured reference source: "+experiment.id);
                         const baseline=source.tree;
                         const candidate=JSON.parse(fs.readFileSync(path.join(destination,"structure.json"),"utf8"));
-                        candidates.push({id:experiment.id,tree:candidate});
                         const report=compareStructure(baseline,candidate);
                         fs.writeFileSync(path.join(destination,"structure-report.json"),JSON.stringify(report,null,2)+"\n");
                         const total=Object.values(report.counts).reduce((a,b)=>a+b,0);
@@ -143,11 +167,11 @@ function Create(settings) {
             }
         } finally { await browser.close(); if(server) await server.close(); }
         if(mode!=="capture"&&candidates.length){
-            const comparisons=compareCatalogue(documents,candidates);
-            const counts=Object.fromEntries(["matching","different","untested","unexpected"].map(status=>[status,comparisons.filter(x=>x.status===status).length]));
+            const comparisons=compareCatalogue(documents,candidates,settings.componentPolicy);
+            const counts=Object.fromEntries(["matching","different","missing","untested","unexpected","excluded"].map(status=>[status,comparisons.filter(x=>x.status===status).length]));
             fs.writeFileSync(path.join(output,"component-report.json"),JSON.stringify({counts,components:comparisons},null,2)+"\n");
             console.log("Cross-reference component audit: "+JSON.stringify(counts));
-            for(const item of comparisons.filter(x=>x.status==="different"||x.status==="unexpected")) findings.push({file:rule.readme,line:1,column:1,message:"Component "+item.tag+"."+item.classes.join(".")+": "+item.status+" ("+item.differentShapes.length+" unrecognized subtree variants; sources: "+(item.sources.join(", ")||"none")+")",infrastructure:false});
+            for(const item of comparisons.filter(x=>["different","missing","unexpected"].includes(x.status))) findings.push({file:rule.readme,line:1,column:1,message:"Component "+item.tag+"."+item.classes.join(".")+": "+item.status+" ("+item.differentShapes.length+" unrecognized subtree variants, "+item.untestedShapes.length+" untested reference variants; sources: "+(item.sources.join(", ")||"none")+")",infrastructure:false});
         }
         return {findings,coverage};
     }};

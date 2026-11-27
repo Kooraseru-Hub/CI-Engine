@@ -20,3 +20,17 @@ test("generic comparison distinguishes a matching, missing and unexpected compon
  const result=compareCatalogue([{id:"a",tree:a},{id:"b",tree:b}],[{id:"candidate",tree:a},{id:"different",tree:c}]);
  assert.deepEqual(Object.fromEntries(result.map(x=>[x.classes[0],x.status])),{other:"untested",shared:"matching",unexpected:"unexpected"});
 });
+
+test("explicit component policy distinguishes missing, untested, and excluded identities",()=>{
+ const tree=(label)=>({labels:[["main",[]],["div",[label]]],nodes:[[1],[0,0]],root:1});
+ const references=["required","optional","excluded","present"].map(id=>({id,tree:tree(id)}));
+ const policy={required:[{tag:"div",classes:["required"]}],excluded:[{tag:"div",classes:["excluded"],reason:"Not within the consumer scope"}]};
+ const result=compareCatalogue(references,[{id:"candidate",tree:tree("present")}],policy);
+ assert.deepEqual(Object.fromEntries(result.map(x=>[x.classes[0],x.status])),{excluded:"excluded",optional:"untested",present:"matching",required:"missing"});
+ assert.throws(()=>compareCatalogue(references,[],{required:[{tag:"div",classes:["unknown"]}]}),/Invalid or duplicate/);
+});
+test("one observed variant does not certify all reference variants",()=>{
+ const tree=(tag)=>({labels:[["div",["container"]],[tag,[]]],nodes:[[1],[0,0]],root:1});
+ const result=compareCatalogue([{id:"a",tree:tree("span")},{id:"b",tree:tree("button")}],[{id:"candidate",tree:tree("span")}]);
+ assert.equal(result[0].status,"matching");assert.equal(result[0].matchingShapes.length,1);assert.equal(result[0].untestedShapes.length,1);
+});
