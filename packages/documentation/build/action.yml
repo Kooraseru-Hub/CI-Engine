@@ -1,0 +1,33 @@
+name: Build documentation
+description: Build a static documentation site using the shared Astro renderer
+inputs:
+  directory:
+    description: Consumer-relative authored documentation directory
+    required: true
+  images:
+    description: Consumer-relative image directory containing favicon.png
+    required: true
+  theme:
+    description: Consumer-relative optional theme override
+    default: content/theme.css
+  output:
+    description: Consumer-relative static output directory
+    required: true
+  base:
+    description: Optional root-relative site base
+    default: ''
+  site:
+    description: Optional public origin
+    default: ''
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DOCS_DIRECTORY: ${{ inputs.directory }}
+        DOCS_IMAGES: ${{ inputs.images }}
+        DOCS_THEME: ${{ inputs.theme }}
+        DOCS_OUTPUT: ${{ inputs.output }}
+        DOCS_BASE: ${{ inputs.base }}
+        DOCS_SITE: ${{ inputs.site }}
+      run: node "$GITHUB_ACTION_PATH/renderer/build.cjs"
