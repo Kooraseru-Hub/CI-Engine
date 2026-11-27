@@ -117,3 +117,36 @@ test("rendered callouts and desktop outline have bounded layout",async t=>{
     await dropdown.waitFor({state:"visible"});
     assert(await dropdown.evaluate(el=>el.scrollWidth<=el.clientWidth+1),"compact outline has horizontal overflow");
 });
+
+
+test("rendered documentation utilities and runnable embed retain their actual targets",async t=>{
+    const product=path.resolve("build/fixture/site");
+    if(!fs.existsSync(path.join(product,"member/index.html")))return t.skip("standalone fixture not built");
+    const [owner,name]=(process.env.GITHUB_REPOSITORY||"").split("/");
+    const base=process.env.DOCS_BASE||(owner&&name&&name.toLowerCase()!==owner.toLowerCase()+".github.io"?"/"+name+"/":"/");
+    const server=await serve(product,base);t.after(()=>server.close());
+    const browser=await chromium.launch();t.after(()=>browser.close());
+    const page=await browser.newPage({viewport:{width:1920,height:900}});
+    await page.route("https://play.luau.org/**",route=>route.fulfill({contentType:"text/html",body:"<p>Independent test frame</p>"}));
+    await page.goto(server.url+base+"member/",{waitUntil:"load"});
+    const utilities=page.locator("docs-toc .docs-outline-utilities");
+    await utilities.locator("summary").click();
+    assert.equal(await utilities.locator("details").evaluate(el=>el.open),true);
+    assert.equal(await utilities.locator("[aria-current=true]").innerText(),"English");
+    if(owner&&name){
+        const feedback=page.locator('[data-api-member="current"] a.docs-feedback');
+        const destination=new URL(await feedback.getAttribute("href"));
+        assert.equal(destination.origin,"https://github.com");
+        assert.equal(destination.pathname,"/"+owner+"/"+name+"/issues/new");
+        assert(destination.searchParams.get("body").includes("#current"));
+    }
+    const frame=page.locator("iframe.docs-luau-playground");
+    const url=new URL(await frame.getAttribute("src"));
+    assert.equal(url.origin,"https://play.luau.org");
+    assert.equal(url.searchParams.get("embed"),"true");
+    assert.equal(url.searchParams.get("controls"),"icons");
+    const LZString=require("./build/renderer/node_modules/lz-string");
+    const state=JSON.parse(LZString.decompressFromEncodedURIComponent(url.hash.slice(1)));
+    assert.equal(state.files["main.luau"],"print(1)");
+    assert.equal(await frame.getAttribute("loading"),"lazy");
+});

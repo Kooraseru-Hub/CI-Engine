@@ -3,6 +3,7 @@ title: Member fixture
 description: Independent deprecated-member interaction specimen.
 ---
 import Aside from '../../components/Aside.astro';
+import LuauPlayground from '../../components/LuauPlayground.astro';
 import ApiMember from '../../components/ApiMember.astro';
 import ApiSummary from '../../components/ApiSummary.astro';
 import ApiInheritedGroup from '../../components/ApiInheritedGroup.astro';
@@ -41,5 +42,7 @@ Inline success tip.
 This content must be absent from the collapsed DOM.
 </div>
 </ApiMember>
+
+<LuauPlayground title="Fixture playground" code={"print(1)"} />
 
 <ApiInteractions />
