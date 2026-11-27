@@ -70,3 +70,18 @@ test("signature formatting distinguishes one parameter from multiple parameters"
  assert.equal(normalizeType("Material",{Material:{category:"Enum"}}),"Enum.Material");
  assert.equal(normalizeType("Enum.Material",{Material:{category:"Enum"}}),"Enum.Material");
 });
+
+test("structured datatype constants are deduplicated, math operations retained, and sample IDs resolved explicitly",()=>{
+ const {compileReference}=require("./build/renderer/api-source.cjs");
+ const missing=[];
+ const result=compileReference({name:"Example",type:"datatype",summary:"Fixture",code_samples:["page"],sampleDefinitions:{page:{code:"print('page')"},member:{code:"print('member')",language:"luau"}},constants:[{name:"Example.zero",type:"Example",code_samples:["member","missing"]}],properties:[{name:"Example.zero",type:"Example"},{name:"Example.X",type:"number"}],math_operations:[{name:"*",operation:"*",type_a:"Example",type_b:"number",return_type:"Example"},{name:"*",operation:"*",type_a:"Example",type_b:"Example",return_type:"Example"}]},undefined,{onMissingSamples:ids=>missing.push(...ids)});
+ assert.equal((result.match(/id=\{"zero"\}/g)||[]).length,1);
+ assert.match(result,/kind=\{"constant"\}/);
+ assert.match(result,/Example \* number: Example/);
+ assert.match(result,/id=\{"operator-2"\}/);
+ assert.match(result,/slot="samples"/);
+ assert.match(result,/print\('member'\)/);
+ assert.match(result,/print\('page'\)/);
+ assert.deepEqual(missing,["missing"]);
+ assert.doesNotMatch(result,/print\('missing'\)/);
+});
