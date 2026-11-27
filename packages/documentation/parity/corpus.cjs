@@ -51,11 +51,11 @@ function catalogue(documents){
     }
     return [...entries.values()].map(entry=>({...entry,shapes:[...entry.shapes.values()].sort((a,b)=>a.hash.localeCompare(b.hash))})).sort((a,b)=>JSON.stringify([a.tag,a.classes]).localeCompare(JSON.stringify([b.tag,b.classes])));
 }
-function coverage(documents,experiments){
+function coverage(documents,experiments,candidates=[]){
     return documents.map(({id,metadata})=>{
         const experiment=experiments.find(x=>x.id===id);
         if(experiment)assert.equal(experiment.spec.reference,metadata.url,"Experiment reference URL differs from corpus");
-        return {id,url:metadata.url,elements:metadata.elements,assetRevision:metadata.assetRevision,status:experiment?"direct-comparison":"component-reference"};
+        return {id,url:metadata.url,elements:metadata.elements,assetRevision:metadata.assetRevision,status:experiment||candidates.some(x=>x.id===id)?"direct-comparison":"component-reference"};
     });
 }
 // Compare a candidate's observed component shapes to the union of registered reference shapes.

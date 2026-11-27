@@ -1,4 +1,17 @@
 <script>
+  for(const member of document.querySelectorAll<HTMLElement>('[data-api-member][data-deprecated]')){
+    const button=member.querySelector<HTMLButtonElement>('.api-deprecated-toggle');
+    const body=member.querySelector<HTMLElement>('.api-member-content');
+    const template=member.querySelector<HTMLTemplateElement>('.api-deprecated-content');
+    if(!button||!body||!template)continue;
+    template.content.append(body);
+    button.addEventListener('click',()=>{
+      const expanded=button.getAttribute('aria-expanded')==='true';
+      if(expanded){body.hidden=true;template.content.append(body);}
+      else {body.hidden=false;template.before(body);}
+      button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Show details':'Hide details';
+    });
+  }
   let sampleId = 0;
   for (const sample of document.querySelectorAll<HTMLElement>('.sl-markdown-content .expressive-code')) {
     const pre = sample.querySelector('pre');

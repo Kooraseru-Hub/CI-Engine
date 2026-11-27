@@ -271,3 +271,7 @@ a.api-type { cursor:pointer; }
   padding: 0;
   color: var(--docs-heading);
 }
+
+.api-deprecated-toggle {appearance:none;border:1px solid var(--docs-border);border-radius:4px;padding:6px 12px;background:var(--docs-surface-secondary);color:var(--docs-heading);font:inherit;cursor:pointer;}
+.api-member-content[hidden] {display:none!important;}
+.api-deprecated-toggle:hover {background:var(--docs-hover);}

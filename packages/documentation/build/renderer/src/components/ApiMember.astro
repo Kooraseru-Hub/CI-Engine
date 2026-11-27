@@ -31,11 +31,12 @@ const badges = metadata.flatMap(({ label, value }) => {
 });
 const multiline = ['function','method','constructor','operator'].includes(kind) ? formatSignature(signature) : null;
 ---
-<section class="api-member" data-api-member={id} data-kind={kind} data-member-name={name}>
+<section class="api-member" data-api-member={id} data-kind={kind} data-member-name={name} data-deprecated={deprecated ? "" : undefined}>
   <span class="api-member-icon-template" hidden>{kind !== 'constructor' && <ApiIcon kind={kind}/>}</span>
-  {(deprecated || badges.length > 0) && (
+  {deprecated && <button class="api-deprecated-toggle" type="button" aria-expanded="false">Show details</button>}
+  <div class="api-member-content" hidden={deprecated}>
+  {(badges.length > 0) && (
     <div class="api-member-badges">
-      {deprecated && <span class="api-member-status">Deprecated</span>}
       {badges.map(label => <span class="api-member-status">{label}</span>)}
     </div>
   )}
@@ -79,4 +80,6 @@ const multiline = ['function','method','constructor','operator'].includes(kind) 
     <h4>Code Samples</h4>
     <slot name="samples" />
   </>}
+  </div>
+  {deprecated && <template class="api-deprecated-content"></template>}
 </section>

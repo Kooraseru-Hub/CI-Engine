@@ -34,3 +34,14 @@ test("one observed variant does not certify all reference variants",()=>{
  const result=compareCatalogue([{id:"a",tree:tree("span")},{id:"b",tree:tree("button")}],[{id:"candidate",tree:tree("span")}]);
  assert.equal(result[0].status,"matching");assert.equal(result[0].matchingShapes.length,1);assert.equal(result[0].untestedShapes.length,1);
 });
+
+test("structured API source compiles through the shared renderer without pre-rendered HTML",()=>{
+ const {compileReference}=require("./build/renderer/api-source.cjs");
+ const result=compileReference({name:"Example",type:"class",summary:"A fixture.",methods:[{name:"Example:Call",parameters:[{name:"x",type:"number",summary:"Input"}],returns:[{type:"boolean",summary:"Result"}],description:"Uses a `Class.Example|fixture`."}]});
+ assert.match(result,/<ApiSummary /);assert.match(result,/<ApiMember /);assert.match(result,/Example:Call\(x: number\): boolean/);
+ assert.match(result,/Uses a `fixture`\./);assert.doesNotMatch(result,/Class\.Example\|fixture/);
+});
+test("paired corpus coverage is registered independently of screenshot scenarios",()=>{
+ const {coverage}=require("./parity/corpus.cjs");
+ assert.equal(coverage([{id:"a",metadata:{url:"https://example.org/a"}}],[],[{id:"a"}])[0].status,"direct-comparison");
+});

@@ -8,7 +8,7 @@ export function formatSignature(signature) {
     if(signature[i]==='(')depth++;
     if(signature[i]===')'&&--depth===0){
       const args=signature.slice(open+1,i).trim();
-      return args?{before:signature.slice(0,open).trimEnd()+' (',args,after:signature.slice(i)}:null;
+      return args?{before:signature.slice(0,open).trimEnd()+'(',args,after:signature.slice(i)}:null;
     }
   }
   return null;
