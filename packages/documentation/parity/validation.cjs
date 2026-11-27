@@ -95,7 +95,7 @@ function Create(settings) {
         const candidateIds=new Set();
         for(const item of declaredCandidates){
             assert(/^[a-z][a-z0-9-]*$/.test(item.id)&&!candidateIds.has(item.id),"Invalid or duplicate component candidate ID");candidateIds.add(item.id);
-            assert(typeof item.route==="string"&&/^\\/(?!\\/)/.test(item.route)&&!/[\\\\?#]/.test(item.route)&&!item.route.split("/").some(part=>part===".."||part==="."),"Invalid component candidate route");
+            assert(typeof item.route==="string"&&item.route.startsWith("/")&&!item.route.startsWith("//")&&!item.route.includes(String.fromCharCode(92))&&!item.route.includes("?")&&!item.route.includes("#")&&!item.route.split("/").some(part=>part===".."||part==="."),"Invalid component candidate route");
             assert(typeof item.root==="string"&&item.root.trim(),"Missing component candidate root");
             assert(["width","height"].every(k=>Number.isInteger(item.viewport?.[k])&&item.viewport[k]>0),"Invalid component candidate viewport");
         }
