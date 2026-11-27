@@ -42,6 +42,12 @@ test("rendered deprecated member collapses, expands, and re-collapses with the a
     const old=page.locator('[data-api-member="old"]'),control=old.locator('button.toggleIcon'),heading=old.locator('[data-member-heading]');
     await control.waitFor({state:"visible"});
     const rail=page.locator(".docs-project-rail");await rail.waitFor({state:"visible"});
+    const outline=page.locator("docs-mobile-toc summary");
+    await outline.waitFor({state:"visible"});
+    await outline.click();
+    assert.equal(await page.locator("docs-mobile-toc details").evaluate(el=>el.open),true);
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator("docs-mobile-toc details").evaluate(el=>el.open),false);
     const x=await page.locator("main .Typography-h1-Typography-root-title").evaluate(el=>el.getBoundingClientRect().x);
     assert(Math.abs(x-537)<=1,"Wide reference article begins after both rails: "+x);
     await page.locator(".docs-project-toggle").click();

@@ -349,3 +349,8 @@ a.api-type { cursor:pointer; }
 [data-api-member] .Typography-body2-Typography-root-defaultValue {display:block;font-size:14px;color:var(--docs-muted);margin:8px 0 0;}
 .sl-markdown-content [data-api-member] :is(.MuiTableCell-root,.content) > p {margin:8px 0 0;}
 .sl-markdown-content [data-api-member] .MuiTableCell-root > p:first-child {margin-top:0;}
+
+/* Intro tags share the reference badge renderer rather than a separate list. */
+.sl-markdown-content .api-class-status {margin-top:12px;}
+.sl-markdown-content .api-class-status .tags {margin:0;}
+.sl-markdown-content .api-class-status .tagWrapper.engine {margin:0;}

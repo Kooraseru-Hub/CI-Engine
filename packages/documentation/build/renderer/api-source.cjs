@@ -29,7 +29,7 @@ function compileReference(data,componentPrefix="../../components/"){
     if(!data||typeof data.name!=="string"||!data.name.trim())throw Error("API source requires a name");
     const title=data.name,summary=markdown(data.summary,data.sourceUrl),description=markdown(data.description,data.sourceUrl),types=data.typeReferences||{};
     const lines=["---","title: "+json(title),"description: "+json(text(data.summary).replace(/\s+/g," ").slice(0,500)||title),"---","", "import ApiSummary from "+json(componentPrefix+"ApiSummary.astro")+";","import ApiMember from "+json(componentPrefix+"ApiMember.astro")+";","import ApiInteractions from "+json(componentPrefix+"ApiInteractions.astro")+";","","export const types = "+json(types)+";","",summary,""];
-    if(data.tags?.length)lines.push('<ul className="api-class-status" aria-label="Class tags">'+data.tags.map(x=>"<li>{"+json(String(x))+"}</li>").join("")+"</ul>","");
+    if(data.tags?.length){lines.splice(7,0,"import ApiTags from "+json(componentPrefix+"ApiTags.astro")+";");lines.push('<div className="api-class-status" aria-label="Class tags"><ApiTags labels={'+json(data.tags.map(x=>String(x).replace(/([a-z])([A-Z])/g,"$1 $2")))+'} /></div>',"");}
     if(data.items?.length){
         lines.push("## Summary","","### Items","","<ApiEnumTable items={"+json(data.items.map(x=>({name:x.name,value:x.value,description:text(x.summary),deprecated:(x.tags||[]).includes("Deprecated")})))+"} />","","## Usage","",description,"");
         lines.splice(7,0,"import ApiEnumTable from "+json(componentPrefix+"ApiEnumTable.astro")+";");
