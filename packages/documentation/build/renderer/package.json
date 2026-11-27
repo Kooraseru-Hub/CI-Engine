@@ -15,6 +15,6 @@
   "dependencies": {
     "astro": "7.4.12",
     "@astrojs/starlight": "0.43.1",
-    "playwright": "1.51.1"
+    "playwright": "1.65.1"
   }
 }
