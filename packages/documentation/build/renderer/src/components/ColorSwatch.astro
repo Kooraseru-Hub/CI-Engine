@@ -1,6 +1,0 @@
----
-const {color,hex,value}=Astro.props;
-const background=String(color??hex??value??'transparent');
----
-<span class="docs-color-swatch" style={{backgroundColor:background}} aria-label={background}></span>
-<style>.docs-color-swatch{display:inline-block;width:24px;height:24px;border-radius:4px;border:1px solid var(--docs-border);vertical-align:middle;}</style>
